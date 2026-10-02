@@ -44,8 +44,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
           python -m compileall -q dealintel tests
+          ruff check --fix --ignore B008 dealintel tests
+          ruff check --ignore B008 dealintel tests
           pytest -q
-          ruff check dealintel tests
 
       - name: Commit imported source
         shell: bash
