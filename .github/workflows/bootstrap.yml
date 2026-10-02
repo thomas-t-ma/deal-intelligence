@@ -1,0 +1,62 @@
+name: Bootstrap tested v0.2 source
+
+on:
+  push:
+    paths:
+      - "bootstrap/source.part04"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-tested-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct tested archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat bootstrap/source.part* > /tmp/deal-intelligence.b64
+          base64 --decode /tmp/deal-intelligence.b64 > /tmp/deal-intelligence.zip
+          echo "af106dc4610daf0d9224ac2e9c2337b04d3b4c50ac545d6b4595fba9137b45fa  /tmp/deal-intelligence.zip" | sha256sum --check
+          mkdir /tmp/deal-src
+          unzip -q /tmp/deal-intelligence.zip -d /tmp/deal-src
+
+      - name: Replace bootstrap with source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a /tmp/deal-src/. .
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate source
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m compileall -q dealintel tests
+          pytest -q
+          ruff check dealintel tests
+
+      - name: Commit imported source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Source already imported."
+            exit 0
+          fi
+          git commit -m "Import tested Deal Intelligence v0.2 source"
+          git push origin HEAD:main
