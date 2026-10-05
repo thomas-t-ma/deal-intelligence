@@ -19,9 +19,10 @@ Discovery providers return `OfferCandidate` objects. Persistent refresh is only 
 If the project becomes a public service, migrate SQLite to PostgreSQL, move scheduled work to a queue/worker, add account authentication, encrypt external-provider credentials, add provider-specific retention rules, and obtain explicit data/affiliate permissions before scaling source ingestion.
 
 
-## v0.2 private-use sourcing
+## v0.3 private-use sourcing
 
-- Slickdeals Frontpage RSS is enabled as a zero-key discovery source for both natural-language search and the live Ridiculous Deals scout.
-- Direct URL tracking uses JSON-LD first, then schema microdata, then conservative retailer-specific selectors for major stores.
-- robots.txt enforcement is optional and defaults off in the private-use profile; SSRF/redirect protections remain mandatory.
-- CAPTCHA or authentication bypass is intentionally not implemented.
+- Slickdeals Frontpage, DealNews Editors’ Choice, and 9to5Toys Steals are enabled as independent zero-key discovery sources for natural-language search and the live Ridiculous Deals scout.
+- Direct URL tracking uses JSON-LD first, then schema microdata, then pragmatic retailer-specific selectors for major stores.
+- robots.txt enforcement is optional and defaults off in the private-use profile; SSRF/redirect protections remain mandatory because they protect the host machine.
+- SerpApi and Best Buy remain optional enrichment providers.
+- CAPTCHA, credential, or authentication bypass is intentionally not implemented.
