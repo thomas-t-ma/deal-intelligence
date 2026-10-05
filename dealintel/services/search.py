@@ -204,6 +204,22 @@ def _candidate_search_text(candidate: OfferCandidate) -> str:
     return normalize_text(f"{candidate.title} {extras}")
 
 
+def _candidate_relevance_text(candidate: OfferCandidate) -> str:
+    title = candidate.title
+    primary_title = re.split(
+        r"\b(?:for|compatible with|fits?|designed for|replacement for)\b",
+        title,
+        maxsplit=1,
+        flags=re.I,
+    )[0].strip() or title
+    extras = " ".join(
+        str(value)
+        for value in (candidate.brand, candidate.model, candidate.mpn, candidate.category)
+        if value
+    )
+    return normalize_text(f"{primary_title} {extras}")
+
+
 def _query_relevance_tokens(text: str) -> list[str]:
     cleaned = text.lower()
     cleaned = re.sub(
@@ -254,7 +270,7 @@ def _corpus_relevance_scores(
     if not features or not candidates:
         return {id(candidate): 50.0 for candidate in candidates}
 
-    texts = [_candidate_search_text(candidate) for candidate in candidates]
+    texts = [_candidate_relevance_text(candidate) for candidate in candidates]
     document_frequency: Counter[str] = Counter()
     for feature, _boost in features:
         document_frequency[feature] = sum(_feature_present(text, feature) for text in texts)
