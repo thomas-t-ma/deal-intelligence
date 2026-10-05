@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 import httpx
 
 from ..identity import normalize_identifier, normalize_text
 from ..scoring import score_deal
 from ..types import EvidenceItem, OfferCandidate, SearchIntent
+from .planner import classify_category
 
 _MAJOR_TOKEN_PATTERNS = (
     re.compile(r"\brtx\s*\d{4}(?:\s*ti|\s*super)?\b", re.I),
@@ -19,6 +21,14 @@ _MAJOR_TOKEN_PATTERNS = (
     re.compile(r"\b\d{2}\s*(?:inch|\")\b", re.I),
     re.compile(r"\b(?:4k|uhd|qhd|1440p|1080p|oled|mini[- ]?led)\b", re.I),
 )
+
+_QUERY_NOISE = {
+    "affordable", "best", "budget", "buy", "buying", "cheap", "deal", "deals",
+    "find", "good", "great", "high", "looking", "low", "me", "need", "new",
+    "open", "box", "please", "price", "prices", "quality", "recommend",
+    "recommended", "sale", "show", "top", "total", "value", "want",
+    "each", "per", "pair", "two",
+}
 
 
 def parse_intent(text: str) -> SearchIntent:
@@ -194,53 +204,91 @@ def _candidate_search_text(candidate: OfferCandidate) -> str:
     return normalize_text(f"{candidate.title} {extras}")
 
 
-def _workstation_product_type(candidate: OfferCandidate, intent: SearchIntent) -> tuple[bool, bool, bool]:
-    """Return (system_requested, complete_system_visible, standalone_gpu_component)."""
-    request = normalize_text(intent.text)
-    system_requested = intent.category == "workstation" or bool(
-        re.search(r"\b(?:workstation|desktop|prebuilt|gaming pc|desktop pc|computer tower)\b", request)
+def _query_relevance_tokens(text: str) -> list[str]:
+    cleaned = text.lower()
+    cleaned = re.sub(
+        r"\\b(?:under|less than|up to|budget(?: of)?|max(?:imum)?(?: price)?)\\s*\\$?\\s*[0-9][0-9,]*(?:\\.\\d+)?",
+        " ",
+        cleaned,
     )
-    if not system_requested:
-        return False, False, False
+    cleaned = re.sub(r"\\$\\s*[0-9][0-9,]*(?:\\.\\d+)?", " ", cleaned)
+    tokens = [
+        token for token in normalize_text(cleaned).split()
+        if token not in _QUERY_NOISE and len(token) > 1
+    ]
+    return tokens
 
-    text = _candidate_search_text(candidate)
-    complete_system_visible = any(
-        cue in text
-        for cue in (
-            "workstation",
-            "desktop",
-            "prebuilt",
-            "gaming pc",
-            "desktop pc",
-            "tower pc",
-            "computer system",
-        )
-    )
-    cpu_visible = bool(
-        re.search(
-            r"\b(?:ryzen|threadripper|xeon|intel core|core ultra|i[579][ -]?\d{4,5})\b",
-            text,
-        )
-    )
-    system_memory_or_storage = bool(re.search(r"\b\d+\s*gb\s+ram\b", text)) or " ssd" in f" {text}"
-    if cpu_visible and system_memory_or_storage:
-        complete_system_visible = True
 
-    gpu_family_visible = bool(re.search(r"\b(?:rtx|rx)\s*\d{4}\b", text))
-    component_cue = any(
-        cue in text
-        for cue in (
-            "graphics card",
-            "video card",
-            "founders edition",
-            "gpu only",
-            "graphics board",
-            "gddr7",
-            "gddr6",
+def _relevance_features(tokens: list[str]) -> list[tuple[str, float]]:
+    features: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for token in tokens:
+        key = f"u:{token}"
+        if key not in seen:
+            seen.add(key)
+            features.append((token, 1.0))
+    for left, right in zip(tokens, tokens[1:]):
+        phrase = f"{left} {right}"
+        key = f"b:{phrase}"
+        if key not in seen:
+            seen.add(key)
+            features.append((phrase, 1.35))
+    return features
+
+
+def _feature_present(candidate_text: str, feature: str) -> bool:
+    padded = f" {candidate_text} "
+    return f" {feature} " in padded
+
+
+def _corpus_relevance_scores(
+    candidates: list[OfferCandidate], intent: SearchIntent
+) -> dict[int, float]:
+    """Compute query/title relevance with corpus-aware IDF weighting.
+
+    Terms that appear in every result carry little discriminative weight; rarer
+    query terms that separate the requested product from nearby products matter more.
+    """
+    tokens = _query_relevance_tokens(intent.text)
+    features = _relevance_features(tokens)
+    if not features or not candidates:
+        return {id(candidate): 50.0 for candidate in candidates}
+
+    texts = [_candidate_search_text(candidate) for candidate in candidates]
+    document_frequency: Counter[str] = Counter()
+    for feature, _boost in features:
+        document_frequency[feature] = sum(_feature_present(text, feature) for text in texts)
+
+    weighted_features: list[tuple[str, float]] = []
+    n = len(candidates)
+    for feature, boost in features:
+        df = document_frequency[feature]
+        idf = math.log((n + 1.0) / (df + 1.0)) + 1.0
+        weighted_features.append((feature, idf * boost))
+
+    denominator = sum(weight for _feature, weight in weighted_features) or 1.0
+    scores: dict[int, float] = {}
+    for candidate, text in zip(candidates, texts):
+        matched = sum(
+            weight for feature, weight in weighted_features
+            if _feature_present(text, feature)
         )
+        scores[id(candidate)] = max(0.0, min(100.0, 100.0 * matched / denominator))
+    return scores
+
+
+def _category_signal(candidate: OfferCandidate, intent: SearchIntent) -> tuple[float, str, str]:
+    request_source = intent.category or intent.text
+    requested = classify_category(request_source)
+    candidate_source = " ".join(
+        part for part in (candidate.category, candidate.title) if part
     )
-    standalone_gpu_component = gpu_family_visible and component_cue and not complete_system_visible
-    return system_requested, complete_system_visible, standalone_gpu_component
+    found = classify_category(candidate_source)
+    if requested == "general" or found == "general":
+        return 0.0, requested, found
+    if requested == found:
+        return 10.0, requested, found
+    return -22.0, requested, found
 
 
 def _matched_evidence(candidate: OfferCandidate, evidence: list[EvidenceItem]) -> list[EvidenceItem]:
@@ -260,25 +308,29 @@ def _matched_evidence(candidate: OfferCandidate, evidence: list[EvidenceItem]) -
     return matched[:8]
 
 
-def _fit_score(candidate: OfferCandidate, intent: SearchIntent) -> tuple[float, list[str]]:
+def _fit_score(
+    candidate: OfferCandidate,
+    intent: SearchIntent,
+    *,
+    retrieval_score: float,
+) -> tuple[float, list[str], str, str]:
     text = _candidate_search_text(candidate)
-    query_words = [w for w in normalize_text(intent.text).split() if len(w) > 2]
-    overlap = sum(word in text for word in query_words) / max(1, len(query_words))
-    score = 48.0 + 34.0 * overlap
+    score = 30.0 + 0.55 * retrieval_score
     reasons: list[str] = []
 
-    system_requested, complete_system_visible, standalone_gpu_component = _workstation_product_type(
-        candidate, intent
-    )
-    if standalone_gpu_component:
-        score -= 90
-        reasons.append("standalone graphics card, not a complete PC")
-    elif system_requested and complete_system_visible:
-        score += 12
-        reasons.append("complete PC/workstation visible")
-    elif system_requested:
-        score -= 18
-        reasons.append("complete PC/workstation not verified")
+    category_adjustment, requested_category, candidate_category = _category_signal(candidate, intent)
+    score += category_adjustment
+    if category_adjustment > 0:
+        reasons.append(f"product class matches: {requested_category.replace('_', ' ')}")
+    elif category_adjustment < 0:
+        reasons.append(
+            "product class differs: "
+            f"requested {requested_category.replace('_', ' ')}, "
+            f"result looks like {candidate_category.replace('_', ' ')}"
+        )
+
+    if retrieval_score < 45:
+        reasons.append(f"low query/title relevance ({retrieval_score:.0f}/100)")
 
     query_major = _major_tokens(intent.text)
     candidate_major = set(_major_tokens(candidate.title + " " + str(candidate.raw)))
@@ -286,7 +338,6 @@ def _fit_score(candidate: OfferCandidate, intent: SearchIntent) -> tuple[float, 
         if token in candidate_major or token in text:
             score += 5
         else:
-            # GPU/capacity/size mismatches are much more important than generic word overlap.
             score -= 28
             reasons.append(f"major requested spec not visible: {token}")
 
@@ -314,11 +365,21 @@ def _fit_score(candidate: OfferCandidate, intent: SearchIntent) -> tuple[float, 
         if normalized and normalized in text:
             score += 4
         else:
-            # Missing from a shopping title means unknown, not necessarily absent.
             score -= 5
             reasons.append(f"required feature not verified: {term}")
 
-    return max(0.0, min(100.0, score)), reasons
+    for term in intent.preferred_terms:
+        normalized = normalize_text(term)
+        if normalized and normalized in text:
+            score += 3
+            reasons.append(f"preferred feature visible: {term}")
+
+    return (
+        max(0.0, min(100.0, score)),
+        reasons,
+        requested_category,
+        candidate_category,
+    )
 
 
 def score_search_candidate(
@@ -328,6 +389,7 @@ def score_search_candidate(
     market_reference: float | None = None,
     market_count: int = 0,
     evidence: list[EvidenceItem] | None = None,
+    retrieval_score: float = 50.0,
 ) -> dict:
     matched = _matched_evidence(candidate, evidence or [])
     source_count = len({item.source for item in matched})
@@ -357,8 +419,11 @@ def score_search_candidate(
         available=candidate.available,
         condition=candidate.condition,
     )
-    fit, fit_notes = _fit_score(candidate, intent)
-    _system_requested, _complete_system, hard_mismatch = _workstation_product_type(candidate, intent)
+    fit, fit_notes, requested_category, candidate_category = _fit_score(
+        candidate,
+        intent,
+        retrieval_score=retrieval_score,
+    )
 
     market_discount = None
     if market_reference and market_reference > 0:
@@ -374,8 +439,6 @@ def score_search_candidate(
     overall = 0.38 * fit + 0.28 * quality + 0.22 * deal.score + 0.12 * confidence
     if fit < 45:
         overall = min(overall, 55)
-    if hard_mismatch:
-        overall = min(overall, 25)
     if quality < intent.min_quality:
         overall = min(overall, 62)
     if intent.max_unit_price and candidate.effective_price > intent.max_unit_price * 1.25:
@@ -403,7 +466,9 @@ def score_search_candidate(
         "market_discount_pct": round(market_discount, 1) if market_discount is not None else None,
         "evidence": matched,
         "reasons": reasons,
-        "hard_mismatch": hard_mismatch,
+        "retrieval_score": round(retrieval_score, 1),
+        "requested_category": requested_category,
+        "candidate_category": candidate_category,
     }
 
 
@@ -414,6 +479,7 @@ def rank_search_results(
 ) -> list[dict]:
     candidates = deduplicate_candidates(candidates)
     market = _market_references(candidates)
+    relevance = _corpus_relevance_scores(candidates, intent)
     rows = []
     for candidate in candidates:
         reference, count = market.get(_identity_key(candidate), (None, 0))
@@ -424,6 +490,7 @@ def rank_search_results(
                 market_reference=reference,
                 market_count=count,
                 evidence=evidence,
+                retrieval_score=relevance.get(id(candidate), 50.0),
             )
         )
     rows.sort(
@@ -459,6 +526,9 @@ async def ollama_rerank_rows(
                 "condition": candidate.condition,
                 "base_fit": row["fit_score"],
                 "base_quality": row["quality_score"],
+                "retrieval_score": row.get("retrieval_score"),
+                "inferred_request_class": row.get("requested_category"),
+                "inferred_result_class": row.get("candidate_category"),
                 "evidence": [
                     {"source": item.source, "title": item.title, "snippet": item.snippet[:300]}
                     for item in row["evidence"][:4]
@@ -467,7 +537,11 @@ async def ollama_rerank_rows(
         )
     prompt = f"""Evaluate shopping candidates against the user's request using ONLY the supplied candidate/evidence data.
 Return JSON object with key "items", an array of objects:
-index(integer), fit(number 0-100), quality(number 0-100), confidence(number 0-100), reason(string <=240 chars), tradeoffs(array <=3 strings).
+index(integer), fit(number 0-100), quality(number 0-100), confidence(number 0-100),
+type_match(one of "same","compatible","different","uncertain"), type_confidence(number 0-100),
+reason(string <=240 chars), tradeoffs(array <=3 strings).
+Judge whether each result is the same kind of purchasable object the user asked for.
+Accessories, replacement parts, and components are "different" unless the user asked for them.
 Do not infer unprovided specs. Unknown requirements should reduce confidence, not be treated as failures.
 User request: {intent.text}
 Candidates: {json.dumps(compact)}
@@ -494,9 +568,14 @@ Candidates: {json.dumps(compact)}
             continue
         # AI can refine fit/quality, but price/deal math stays deterministic.
         row["fit_score"] = round(0.35 * row["fit_score"] + 0.65 * fit, 1)
-        if row.get("hard_mismatch"):
-            # An LLM must not resurrect a clearly wrong product class.
-            row["fit_score"] = min(row["fit_score"], 10.0)
+        type_match = str(item.get("type_match") or "uncertain").lower()
+        try:
+            type_confidence = max(0.0, min(100.0, float(item.get("type_confidence", 0))))
+        except (TypeError, ValueError):
+            type_confidence = 0.0
+        semantic_type_mismatch = type_match == "different" and type_confidence >= 80
+        if semantic_type_mismatch:
+            row["fit_score"] = min(row["fit_score"], 20.0)
         row["quality_score"] = round(0.45 * row["quality_score"] + 0.55 * quality, 1)
         row["confidence_score"] = round(min(row["confidence_score"], confidence), 1)
         row["overall_score"] = round(
@@ -506,8 +585,10 @@ Candidates: {json.dumps(compact)}
             + 0.12 * row["confidence_score"],
             1,
         )
-        if row.get("hard_mismatch"):
-            row["overall_score"] = min(row["overall_score"], 25.0)
+        if semantic_type_mismatch:
+            row["overall_score"] = min(row["overall_score"], 45.0)
+        row["semantic_type_match"] = type_match
+        row["semantic_type_confidence"] = round(type_confidence, 1)
         row["combined_score"] = row["overall_score"]
         row["ai_reason"] = str(item.get("reason") or "")[:240]
         row["tradeoffs"] = [str(x)[:160] for x in item.get("tradeoffs", [])[:3]]
