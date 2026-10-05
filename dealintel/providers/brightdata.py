@@ -14,6 +14,24 @@ from .base import DiscoveryProvider
 _PRICE_RE = re.compile(r"(?<!\d)\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)")
 
 
+_REVIEW_5_RE = re.compile(r"\b([0-5](?:\.\d+)?)\s*(?:/|out of)\s*5\b", re.I)
+_REVIEW_10_RE = re.compile(r"\b([0-9](?:\.\d+)?)\s*(?:/|out of)\s*10\b", re.I)
+_REVIEW_100_RE = re.compile(r"\b(100|[1-9]?[0-9])\s*(?:/|out of)\s*100\b", re.I)
+
+
+def _review_score(text: str) -> float | None:
+    for regex, factor in (
+        (_REVIEW_5_RE, 20.0),
+        (_REVIEW_10_RE, 10.0),
+        (_REVIEW_100_RE, 1.0),
+    ):
+        match = regex.search(text)
+        if match:
+            value = float(match.group(1)) * factor
+            return max(0.0, min(100.0, value))
+    return None
+
+
 def _number(value: Any) -> float | None:
     if isinstance(value, int | float):
         return float(value)
