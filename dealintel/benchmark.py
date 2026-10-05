@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import CredentialStore, load_config
@@ -111,7 +111,7 @@ async def run_benchmark(
         if item["top5_within_budget_fraction"] is not None
     ]
     return {
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "version": "0.4.0",
         "mode": mode,
         "broad_search_configured": bool(bright or serp),
