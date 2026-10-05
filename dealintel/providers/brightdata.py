@@ -165,6 +165,9 @@ def parse_shopping_payload(payload: Any, provider: str = "brightdata") -> list[O
                 model=_first(item, "model", "model_number", "mpn"),
                 gtin=str(_first(item, "gtin", "upc", "ean") or "") or None,
                 mpn=_first(item, "mpn"),
+                category=str(
+                    _first(item, "category", "product_category", "product_type", "type") or ""
+                ) or None,
                 image_url=_first(item, "thumbnail", "image", "image_url"),
                 seller=str(_first(item, "seller", "merchant") or "") or None,
                 quality_score=quality,
