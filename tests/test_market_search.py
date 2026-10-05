@@ -43,3 +43,33 @@ def test_wrong_major_gpu_is_suppressed():
     rows = rank_search_results([wrong, good], intent)
     assert rows[0]["candidate"].provider_item_id == "1"
     assert rows[0]["fit_score"] > rows[1]["fit_score"]
+
+
+def test_google_product_cluster_groups_title_variants():
+    a = OfferCandidate(
+        provider="brightdata",
+        provider_item_id="a",
+        title="Samsung 990 PRO 4TB SSD",
+        url="https://one.example/a",
+        retailer="One",
+        price=220,
+        quality_score=88,
+        quality_confidence=80,
+        trust_score=90,
+        raw={"google_product_id": "gp-123"},
+    )
+    b = OfferCandidate(
+        provider="brightdata",
+        provider_item_id="b",
+        title="Samsung 990 PRO 4TB PCIe 4.0 NVMe M.2",
+        url="https://two.example/b",
+        retailer="Two",
+        price=260,
+        quality_score=88,
+        quality_confidence=80,
+        trust_score=90,
+        raw={"google_product_id": "gp-123"},
+    )
+    rows = rank_search_results([a, b], parse_intent("Samsung 990 Pro 4TB"))
+    assert rows[0]["market_typical"] == 240
+    assert rows[0]["market_offer_count"] == 2
