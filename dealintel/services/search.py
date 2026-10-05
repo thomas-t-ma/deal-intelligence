@@ -194,6 +194,55 @@ def _candidate_search_text(candidate: OfferCandidate) -> str:
     return normalize_text(f"{candidate.title} {extras}")
 
 
+def _workstation_product_type(candidate: OfferCandidate, intent: SearchIntent) -> tuple[bool, bool, bool]:
+    """Return (system_requested, complete_system_visible, standalone_gpu_component)."""
+    request = normalize_text(intent.text)
+    system_requested = intent.category == "workstation" or bool(
+        re.search(r"\b(?:workstation|desktop|prebuilt|gaming pc|desktop pc|computer tower)\b", request)
+    )
+    if not system_requested:
+        return False, False, False
+
+    text = _candidate_search_text(candidate)
+    complete_system_visible = any(
+        cue in text
+        for cue in (
+            "workstation",
+            "desktop",
+            "prebuilt",
+            "gaming pc",
+            "desktop pc",
+            "tower pc",
+            "computer system",
+        )
+    )
+    cpu_visible = bool(
+        re.search(
+            r"\b(?:ryzen|threadripper|xeon|intel core|core ultra|i[579][ -]?\d{4,5})\b",
+            text,
+        )
+    )
+    system_memory_or_storage = bool(re.search(r"\b\d+\s*gb\s+ram\b", text)) or " ssd" in f" {text}"
+    if cpu_visible and system_memory_or_storage:
+        complete_system_visible = True
+
+    gpu_family_visible = bool(re.search(r"\b(?:rtx|rx)\s*\d{4}\b", text))
+    component_cue = any(
+        cue in text
+        for cue in (
+            "graphics card",
+            "video card",
+            "founders edition",
+            "gpu only",
+            "graphics board",
+            "gddr7",
+            "gddr6",
+        )
+    )
+    standalone_gpu_component = gpu_family_visible and component_cue and not complete_system_visible
+    return system_requested, complete_system_visible, standalone_gpu_component
+
+
 def _matched_evidence(candidate: OfferCandidate, evidence: list[EvidenceItem]) -> list[EvidenceItem]:
     if not evidence:
         return []
@@ -217,6 +266,19 @@ def _fit_score(candidate: OfferCandidate, intent: SearchIntent) -> tuple[float, 
     overlap = sum(word in text for word in query_words) / max(1, len(query_words))
     score = 48.0 + 34.0 * overlap
     reasons: list[str] = []
+
+    system_requested, complete_system_visible, standalone_gpu_component = _workstation_product_type(
+        candidate, intent
+    )
+    if standalone_gpu_component:
+        score -= 90
+        reasons.append("standalone graphics card, not a complete PC")
+    elif system_requested and complete_system_visible:
+        score += 12
+        reasons.append("complete PC/workstation visible")
+    elif system_requested:
+        score -= 18
+        reasons.append("complete PC/workstation not verified")
 
     query_major = _major_tokens(intent.text)
     candidate_major = set(_major_tokens(candidate.title + " " + str(candidate.raw)))
@@ -296,6 +358,7 @@ def score_search_candidate(
         condition=candidate.condition,
     )
     fit, fit_notes = _fit_score(candidate, intent)
+    _system_requested, _complete_system, hard_mismatch = _workstation_product_type(candidate, intent)
 
     market_discount = None
     if market_reference and market_reference > 0:
@@ -311,6 +374,8 @@ def score_search_candidate(
     overall = 0.38 * fit + 0.28 * quality + 0.22 * deal.score + 0.12 * confidence
     if fit < 45:
         overall = min(overall, 55)
+    if hard_mismatch:
+        overall = min(overall, 25)
     if quality < intent.min_quality:
         overall = min(overall, 62)
     if intent.max_unit_price and candidate.effective_price > intent.max_unit_price * 1.25:
@@ -338,6 +403,7 @@ def score_search_candidate(
         "market_discount_pct": round(market_discount, 1) if market_discount is not None else None,
         "evidence": matched,
         "reasons": reasons,
+        "hard_mismatch": hard_mismatch,
     }
 
 
@@ -428,6 +494,9 @@ Candidates: {json.dumps(compact)}
             continue
         # AI can refine fit/quality, but price/deal math stays deterministic.
         row["fit_score"] = round(0.35 * row["fit_score"] + 0.65 * fit, 1)
+        if row.get("hard_mismatch"):
+            # An LLM must not resurrect a clearly wrong product class.
+            row["fit_score"] = min(row["fit_score"], 10.0)
         row["quality_score"] = round(0.45 * row["quality_score"] + 0.55 * quality, 1)
         row["confidence_score"] = round(min(row["confidence_score"], confidence), 1)
         row["overall_score"] = round(
@@ -437,6 +506,8 @@ Candidates: {json.dumps(compact)}
             + 0.12 * row["confidence_score"],
             1,
         )
+        if row.get("hard_mismatch"):
+            row["overall_score"] = min(row["overall_score"], 25.0)
         row["combined_score"] = row["overall_score"]
         row["ai_reason"] = str(item.get("reason") or "")[:240]
         row["tradeoffs"] = [str(x)[:160] for x in item.get("tradeoffs", [])[:3]]

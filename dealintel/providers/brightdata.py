@@ -244,7 +244,8 @@ class BrightDataProvider(DiscoveryProvider):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        async with httpx.AsyncClient(timeout=45) as client:
+        timeout = httpx.Timeout(60.0, connect=15.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post("https://api.brightdata.com/request", headers=headers, json=payload)
             response.raise_for_status()
             try:

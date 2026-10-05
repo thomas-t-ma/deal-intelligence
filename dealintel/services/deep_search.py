@@ -94,7 +94,7 @@ async def run_search(
 
     if brightdata:
         providers.append("Bright Data Google Shopping/Search")
-        semaphore = asyncio.Semaphore(6)
+        semaphore = asyncio.Semaphore(4)
 
         async def bright_shopping(query: str) -> list:
             async with semaphore:
@@ -147,10 +147,17 @@ async def run_search(
 
     if jobs:
         results = await asyncio.gather(*jobs)
+        bright_web_failures: list[str] = []
+        bright_web_successes = 0
         for label, result in results:
             if isinstance(result, Exception):
-                errors.append(f"{label}: {type(result).__name__}: {result}")
+                if label.startswith("Bright Data web ·"):
+                    bright_web_failures.append(f"{type(result).__name__}: {result}")
+                else:
+                    errors.append(f"{label}: {type(result).__name__}: {result}")
                 continue
+            if label.startswith("Bright Data web ·"):
+                bright_web_successes += 1
             if result and isinstance(result[0], EvidenceItem):
                 evidence.extend(result)
                 if "retailer" in label.lower() or "web" in label.lower():
@@ -160,6 +167,14 @@ async def run_search(
                             candidates.append(offer)
             else:
                 candidates.extend(result)
+
+        # Evidence enrichment is intentionally best-effort. One slow SERP query
+        # should not make a successful product search look broken to the user.
+        if bright_web_failures and bright_web_successes == 0:
+            errors.append(
+                f"Bright Data evidence search failed ({len(bright_web_failures)} queries); "
+                f"first error: {bright_web_failures[0]}"
+            )
 
     deduped = deduplicate_candidates(candidates)
     rows = rank_search_results(deduped, intent, evidence=evidence)
