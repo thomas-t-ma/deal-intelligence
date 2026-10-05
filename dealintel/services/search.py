@@ -4,8 +4,6 @@ import json
 import re
 import statistics
 from collections import defaultdict
-from urllib.parse import urlparse
-
 import httpx
 
 from ..identity import normalize_identifier, normalize_text
@@ -195,7 +193,6 @@ def _candidate_search_text(candidate: OfferCandidate) -> str:
 def _matched_evidence(candidate: OfferCandidate, evidence: list[EvidenceItem]) -> list[EvidenceItem]:
     if not evidence:
         return []
-    target = _candidate_search_text(candidate)
     model = normalize_text(candidate.model)
     title_words = [w for w in normalize_text(candidate.title).split() if len(w) >= 4][:6]
     matched: list[EvidenceItem] = []
