@@ -165,3 +165,6 @@ def test_general_relevance_prefers_tv_over_soundbar():
     )
     rows = rank_search_results([soundbar, tv], intent)
     assert rows[0]["candidate"].provider_item_id == "tv"
+    tv_row = next(row for row in rows if row["candidate"].provider_item_id == "tv")
+    soundbar_row = next(row for row in rows if row["candidate"].provider_item_id == "soundbar")
+    assert tv_row["retrieval_score"] > soundbar_row["retrieval_score"]
