@@ -28,7 +28,7 @@ The app tracks real observed prices, calculates effective price (including shipp
 - **Local alert history** plus optional SMTP email delivery.
 - **Background refresh loop** while the service is running, plus `dealintel refresh` for schedulers/cron.
 - **Docker / Compose** support.
-- **42 automated tests** plus CI startup smoke tests on Python 3.11 and 3.13.
+- **44 automated tests** plus CI startup smoke tests on Python 3.11 and 3.13.
 
 ## Fastest setup on Windows
 
@@ -190,6 +190,7 @@ If you expose the app publicly, add authentication and run it behind a productio
 dealintel init       Initialize the database
 dealintel run        Start the web app and background refresher
 dealintel refresh    Refresh currently-due URL listings and evaluate alerts once
+dealintel benchmark  Run the v0.4 shopping benchmark and save a JSON report
 ```
 
 Useful for Windows Task Scheduler / cron if you do not keep the web process running continuously:
@@ -197,6 +198,14 @@ Useful for Windows Task Scheduler / cron if you do not keep the web process runn
 ```bash
 dealintel refresh
 ```
+
+To evaluate search quality after configuring a broad-search provider:
+
+```bash
+dealintel benchmark
+```
+
+The default benchmark performs real Deep Searches and therefore consumes provider quota. Use `dealintel benchmark --mode quick` for a cheaper initial sanity check.
 
 ## Development
 
