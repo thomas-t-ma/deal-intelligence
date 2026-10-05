@@ -1,35 +1,76 @@
 {% extends "base.html" %}
-{% block title %}Find Something · Deal Intelligence{% endblock %}
-{% block heading %}Find something worth buying{% endblock %}
+{% block title %}Deep Search · Deal Intelligence{% endblock %}
+{% block heading %}Find the best way to buy it{% endblock %}
 {% block content %}
 <section class="panel search-hero">
-  <div class="eyebrow">NATURAL-LANGUAGE PURCHASING</div>
-  <h2>Describe the outcome, not just the SKU.</h2>
-  <p>Example: “Find two bright 27-inch QHD monitors under $300 total. HDMI required. Gaming performance is irrelevant.”</p>
+  <div class="eyebrow">PURCHASING RESEARCH ENGINE</div>
+  <h2>Describe what you want. Search products, sellers, prices, reviews, and tradeoffs together.</h2>
+  <p>Exact product or vague requirement both work. Example: “Best RTX 5090 workstation under &#36;5,000 with at least 64 GB RAM. Component quality matters more than gaming aesthetics.”</p>
   <form method="post" action="/search" class="search-form">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <textarea name="query" required rows="3" placeholder="What do you need, what matters, and what is your budget?">{{ query }}</textarea>
-    <div class="search-controls"><label class="check"><input type="checkbox" name="include_bestbuy" value="1"> Include Best Buy live API (only if enabled in Settings)</label><button class="button primary" type="submit">Scout the market</button></div>
+    <div class="mode-picker">
+      <label class="mode-card"><input type="radio" name="mode" value="quick" {% if mode != 'deep' %}checked{% endif %}><span><strong>Quick Search</strong><small>Focused market scan. Best for a known product or straightforward category.</small></span></label>
+      <label class="mode-card"><input type="radio" name="mode" value="deep" {% if mode == 'deep' %}checked{% endif %}><span><strong>Deep Search</strong><small>Expands queries across retailers, reviews, and community evidence. Use for important purchases.</small></span></label>
+    </div>
+    <div class="search-controls"><span class="microcopy">Fit and quality outrank fake markdown percentages.</span><button class="button primary" type="submit">Search the market</button></div>
   </form>
 </section>
 
 {% if rows is not none %}
+{% if not brightdata_configured %}
+<div class="notice danger"><strong>Limited discovery mode.</strong> Broad Deep Search is not active because no Bright Data token is configured. The results below come from configured APIs/fallback deal feeds and may be much less complete. Add the free Bright Data token in <a href="/settings">Settings</a> to enable the intended v0.4 search engine.</div>
+{% endif %}
+{% if errors %}<div class="notice danger"><strong>Some sources failed:</strong> {{ errors|join(' · ') }}</div>{% endif %}
+
 <div class="search-summary panel">
-  <div><span>Quantity</span><strong>{{ intent.quantity }}</strong></div><div><span>Unit ceiling</span><strong>{% if intent.max_unit_price %}${{ '%.2f'|format(intent.max_unit_price) }}{% else %}—{% endif %}</strong></div><div><span>Sources</span><strong>{{ providers|join(', ') if providers else 'None configured' }}</strong></div><div><span>Results</span><strong>{{ rows|length }}</strong></div>
+  <div><span>Mode</span><strong>{{ plan.mode|title if plan else mode|title }}</strong></div>
+  <div><span>Queries planned</span><strong>{{ query_count }}</strong></div>
+  <div><span>Candidates</span><strong>{{ deduplicated_count }}</strong></div>
+  <div><span>Category</span><strong>{{ plan.category|title if plan else '—' }}</strong></div>
 </div>
-{% if errors %}<div class="notice danger">{{ errors|join(' · ') }}</div>{% endif %}
-{% if not serp_configured %}<div class="notice">Slickdeals discovery is active with no key. Add a SerpApi key in <a href="/settings">Settings</a> to broaden searches across Google Shopping.</div>{% endif %}
+
+{% if plan %}
+<details class="panel search-plan">
+  <summary>How this search was planned</summary>
+  <p>{{ plan.explanation }}</p>
+  <div class="query-chips">{% for q in plan.queries %}<span class="pill">{{ q.purpose }} · {{ q.query }}</span>{% endfor %}</div>
+  <p class="microcopy">Sources used: {{ providers|join(', ') if providers else 'No live source configured' }}</p>
+</details>
+{% endif %}
 
 {% if rows %}
+<div class="section-heading"><div><div class="eyebrow">RANKED SHORTLIST</div><h2>Best purchasing options found</h2></div><span class="muted">{{ rows|length }} ranked offers</span></div>
 <div class="search-results">
 {% for row in rows %}
-  <article class="search-result">
+  <article class="search-result deep-result">
     <div class="result-image">{% if row.candidate.image_url %}<img src="{{ row.candidate.image_url }}" alt="">{% else %}<span>◫</span>{% endif %}</div>
-    <div class="result-main"><div class="card-top"><span class="pill">{{ row.candidate.retailer }}</span><span>fit {{ '%.0f'|format(row.fit_score) }}/100</span></div><h3>{{ row.candidate.title }}</h3><p>{{ row.deal.explanation }}</p><div class="signal-row"><span>Quality {{ '%.0f'|format(row.deal.quality_signal) }}</span><span>Trust {{ '%.0f'|format(row.deal.trust_signal) }}</span><span>Evidence {{ '%.0f'|format(row.deal.confidence_signal) }}</span></div></div>
-    <div class="result-side"><div class="big-price">${{ '%.2f'|format(row.candidate.effective_price) }}</div>{% if row.candidate.reference_price %}<div class="strike">ref. ${{ '%.2f'|format(row.candidate.reference_price) }}</div>{% endif %}<div class="score-badge score-{{ row.deal.label|lower }}"><strong>{{ '%.0f'|format(row.deal.score) }}</strong><span>{{ row.deal.label }}</span></div>{% if row.candidate.url %}<a class="button ghost small" href="{{ row.candidate.url }}" target="_blank" rel="noopener noreferrer">Open result ↗</a>{% endif %}</div>
+    <div class="result-main">
+      <div class="card-top"><span class="pill">{{ row.candidate.retailer }}</span><span>{{ row.candidate.condition|replace('_',' ')|title }} · {{ row.candidate.provider }}</span></div>
+      <h3>{{ row.candidate.title }}</h3>
+      <div class="score-strip">
+        <span><b>{{ '%.0f'|format(row.fit_score) }}</b> Fit</span>
+        <span><b>{{ '%.0f'|format(row.quality_score) }}</b> Quality</span>
+        <span><b>{{ '%.0f'|format(row.deal.score) }}</b> Deal</span>
+        <span><b>{{ '%.0f'|format(row.confidence_score) }}</b> Confidence</span>
+      </div>
+      {% if row.ai_reason %}<p class="result-reason"><strong>Assessment:</strong> {{ row.ai_reason }}</p>{% elif row.reasons %}<p class="result-reason">{{ row.reasons|join(' · ') }}</p>{% else %}<p>{{ row.deal.explanation }}</p>{% endif %}
+      {% if row.market_typical %}<p class="market-line">Same-product market median: <strong>&#36;{{ '%.2f'|format(row.market_typical) }}</strong> across {{ row.market_offer_count }} offers{% if row.market_discount_pct is not none %} · this offer {{ '%.0f'|format(row.market_discount_pct|abs) }}% {% if row.market_discount_pct >= 0 %}below{% else %}above{% endif %}{% endif %}</p>{% endif %}
+      {% if row.evidence %}<div class="evidence-row">{% for item in row.evidence[:4] %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.source }}</a>{% endfor %}</div>{% endif %}
+      {% if row.tradeoffs %}<ul class="tradeoffs">{% for item in row.tradeoffs %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+      {% if row.candidate.raw.get('verification_needed') %}<div class="microcopy">Search-snippet price — verify on retailer page before buying.</div>{% endif %}
+    </div>
+    <div class="result-side">
+      <div class="big-price">&#36;{{ '%.2f'|format(row.candidate.effective_price) }}</div>
+      {% if row.candidate.reference_price %}<div class="strike">shown ref. &#36;{{ '%.2f'|format(row.candidate.reference_price) }}</div>{% endif %}
+      <div class="score-badge score-{% if row.overall_score >= 90 %}absurd{% elif row.overall_score >= 80 %}exceptional{% elif row.overall_score >= 70 %}great{% elif row.overall_score >= 55 %}good{% else %}normal{% endif %}"><strong>{{ '%.0f'|format(row.overall_score) }}</strong><span>Overall</span></div>
+      {% if row.candidate.url %}<a class="button ghost small" href="{{ row.candidate.url }}" target="_blank" rel="noopener noreferrer">Open result ↗</a>{% endif %}
+    </div>
   </article>
 {% endfor %}
 </div>
-{% else %}<div class="empty panel"><div class="empty-icon">⌕</div><h3>No results returned</h3><p>Check provider configuration or broaden the request.</p></div>{% endif %}
+{% else %}
+<div class="empty panel"><div class="empty-icon">⌕</div><h3>No useful candidates survived</h3><p>Deep Search prefers returning nothing over inventing relevance. Check provider configuration or loosen the request.</p></div>
+{% endif %}
 {% endif %}
 {% endblock %}
