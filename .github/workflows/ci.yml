@@ -27,7 +27,7 @@ jobs:
           with TestClient(app) as client:
               health = client.get("/api/health")
               assert health.status_code == 200, health.text
-              assert health.json()["version"] == "0.3.0"
+              assert health.json()["version"] == "0.4.0"
               dashboard = client.get("/")
               assert dashboard.status_code == 200
               assert "Deal Intelligence" in dashboard.text
