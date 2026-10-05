@@ -16,3 +16,19 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: python -m pytest -q
       - run: ruff check dealintel tests
+      - name: Smoke-test web app
+        shell: bash
+        run: |
+          export DEALINTEL_HOME="$(mktemp -d)"
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from dealintel.web import app
+
+          with TestClient(app) as client:
+              health = client.get("/api/health")
+              assert health.status_code == 200, health.text
+              assert health.json()["version"] == "0.3.0"
+              dashboard = client.get("/")
+              assert dashboard.status_code == 200
+              assert "Deal Intelligence" in dashboard.text
+          PY
