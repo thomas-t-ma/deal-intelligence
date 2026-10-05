@@ -17,7 +17,14 @@ from sqlalchemy.orm import Session
 from .config import CredentialStore, load_config
 from .db import get_session, init_db
 from .models import AlertEvent, Listing, Product, Watch
-from .providers import BestBuyProvider, SerpApiProvider, SlickdealsProvider
+from .providers import (
+    DEALNEWS_EDITORS,
+    NINE_TO_FIVE_STEALS,
+    BestBuyProvider,
+    CuratedFeedProvider,
+    SerpApiProvider,
+    SlickdealsProvider,
+)
 from .services.catalog import (
     add_url,
     dashboard_rows,
@@ -47,7 +54,7 @@ def _base_context(request: Request) -> dict:
     return {
         "request": request,
         "csrf": request.app.state.csrf_token,
-        "app_version": "0.1.0",
+        "app_version": "0.3.0",
     }
 
 
@@ -64,7 +71,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Deal Intelligence",
-    version="0.1.0",
+    version="0.3.0",
     description="Quality-aware deal discovery and price intelligence.",
     lifespan=lifespan,
 )
@@ -90,13 +97,26 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
 async def ridiculous(request: Request, session: Session = Depends(get_session)):
     tracked = ridiculous_rows(session)
     live_rows = []
-    live_error = None
-    try:
-        candidates = await SlickdealsProvider(config.user_agent).search(parse_intent(""), limit=36)
-        live_rows = rank_search_results(candidates, parse_intent(""))[:24]
-    except Exception as exc:
-        live_error = f"{type(exc).__name__}: {exc}"
-    ctx = _base_context(request) | {"rows": tracked, "live_rows": live_rows, "live_error": live_error}
+    live_errors = []
+    intent = parse_intent("")
+    tasks = [
+        SlickdealsProvider(config.user_agent).search(intent, limit=36),
+        CuratedFeedProvider(DEALNEWS_EDITORS, config.user_agent).search(intent, limit=30),
+        CuratedFeedProvider(NINE_TO_FIVE_STEALS, config.user_agent).search(intent, limit=30),
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    candidates = []
+    for result in results:
+        if isinstance(result, Exception):
+            live_errors.append(f"{type(result).__name__}: {result}")
+        else:
+            candidates.extend(result)
+    live_rows = rank_search_results(candidates, intent)[:30]
+    ctx = _base_context(request) | {
+        "rows": tracked,
+        "live_rows": live_rows,
+        "live_errors": live_errors,
+    }
     return templates.TemplateResponse(request, "ridiculous.html", ctx)
 
 
@@ -329,8 +349,12 @@ async def search_products(
         if enhanced:
             intent = enhanced
 
-    providers = ["Slickdeals Frontpage"]
-    tasks = [SlickdealsProvider(config.user_agent).search(intent, limit=40)]
+    providers = ["Slickdeals Frontpage", "DealNews Editors' Choice", "9to5Toys Steals"]
+    tasks = [
+        SlickdealsProvider(config.user_agent).search(intent, limit=40),
+        CuratedFeedProvider(DEALNEWS_EDITORS, config.user_agent).search(intent, limit=30),
+        CuratedFeedProvider(NINE_TO_FIVE_STEALS, config.user_agent).search(intent, limit=30),
+    ]
     serp_key = store.get("serpapi_api_key")
     if serp_key:
         providers.append("Google Shopping via SerpApi")
@@ -417,13 +441,15 @@ def health(session: Session = Depends(get_session)):
     session.execute(select(1))
     return {
         "status": "ok",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "database": str(config.db_path),
         "providers": {
             "url_tracker": True,
             "serpapi": bool(store.get("serpapi_api_key")),
             "bestbuy": bool(store.get("bestbuy_api_key")),
             "slickdeals": True,
+            "dealnews": True,
+            "9to5toys": True,
             "ollama": bool(store.get("ollama_url")),
         },
     }
