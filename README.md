@@ -18,15 +18,17 @@ The app tracks real observed prices, calculates effective price (including shipp
 - **Effective-price accounting** for shipping, memberships, coupons and cashback.
 - **Conservative product identity resolution** using GTIN/model/MPN first and fuzzy titles only when identifiers do not conflict.
 - **Natural-language shopping requests** with a deterministic parser and optional local Ollama enhancement.
-- **Zero-key live deal discovery** from Slickdeals Frontpage, DealNews Editors’ Choice, and 9to5Toys Steals, combining community and human-editor signals.
-- **Broad Google Shopping discovery** through optional SerpApi integration.
+- **Quick Search / Deep Search** with category-aware query expansion, retailer-targeted searches, review/community evidence, and market-aware ranking.
+- **Bright Data Google Shopping + Search** as the recommended broad discovery backend for v0.4.
+- **Zero-key curated signals** from Slickdeals Frontpage, DealNews Editors’ Choice, and 9to5Toys Steals; these are now secondary signals rather than the primary search universe.
+- **SerpApi fallback** for Google Shopping when Bright Data is not configured.
 - **Best Buy live search/open-box provider code** behind explicit terms acknowledgement; it is intentionally not the historical-data foundation.
 - **Manual listing mode** for retailers that block automated access or do not expose trustworthy structured metadata.
 - **Watch thresholds** by price and/or Deal Score.
 - **Local alert history** plus optional SMTP email delivery.
 - **Background refresh loop** while the service is running, plus `dealintel refresh` for schedulers/cron.
 - **Docker / Compose** support.
-- **33 automated tests** plus a smoke-tested FastAPI UI.
+- **42 automated tests** plus CI startup smoke tests on Python 3.11 and 3.13.
 
 ## Fastest setup on Windows
 
@@ -77,7 +79,21 @@ You can use the app without any external API keys:
 
 If a retailer blocks ordinary HTTP fetching, use **manual listing mode**. The private-use configuration is intentionally pragmatic, but it still does not attempt CAPTCHA solving, credential bypass, or other access-control circumvention.
 
-## Broad discovery
+## Deep Search v0.4
+
+The main search flow is now designed to answer:
+
+> What are the best products for this need, and what is the best way to buy them right now?
+
+**Quick Search** uses a compact plan for known products and simple shopping tasks. **Deep Search** expands the request into multiple shopping, retailer, review, and community queries. Results are ranked using separate **Fit**, **Quality**, **Deal**, and **Confidence** signals.
+
+### Bright Data (recommended)
+
+Add a Bright Data API token in **Settings** to activate the intended v0.4 search engine. The app uses Bright Data's SERP endpoint for both Google Shopping and targeted Google Search queries. The default SERP zone is `serp_api1`, but you can change it in Settings if your account uses another zone.
+
+Do not paste the token into chat; store it directly in the local Settings page.
+
+Without Bright Data (or SerpApi as fallback), search still runs but the UI explicitly marks the result as **limited discovery mode**.
 
 ### Curated deal feeds (built in, no key)
 
@@ -91,9 +107,7 @@ These feeds are discovery signals rather than historical truth. Your own tracked
 
 ### SerpApi / Google Shopping
 
-Add a SerpApi key in **Settings** to make “Find Something” search Google Shopping. As of October 2026, SerpApi advertises a free 250-search/month plan, but pricing can change; check the current plan before relying on that allowance.
-
-The app keeps this optional so your core price history and scoring do not depend on a paid data provider.
+SerpApi remains supported as an optional fallback. When Bright Data is configured, Deal Intelligence does not burn both providers across every expanded query.
 
 ### Best Buy
 
@@ -197,30 +211,31 @@ GitHub Actions runs tests on Python 3.11 and 3.13.
 ## Architecture
 
 ```text
-                 discovery / tracking
-          ┌────────────┼────────────┐
-          │            │            │
-     product URLs  curated feeds  SerpApi / APIs
-          │          (zero-key)     (optional)
-          └────────────┼────────────┘
+                 shopping request
                        ↓
-                identity resolver
+                intent + query plan
                        ↓
-        product + condition-aware listings
+     ┌─────────────────┼─────────────────┐
+     │                 │                 │
+ Bright Data       retailer APIs      curated feeds
+ Shopping/Search    / direct URLs     (secondary)
+     └─────────────────┼─────────────────┘
                        ↓
-              observed price history
+          offers separated from evidence
                        ↓
-     quality + trust + evidence + effective price
+          identity + same-product market
                        ↓
-                   Deal Score
-                 ↙            ↘
-          ridiculous feed      watches/alerts
+       Fit · Quality · Deal · Confidence
+                       ↓
+               ranked shortlist
+                       ↓
+            tracking / watches
 ```
 
-## What is deliberately *not* in v0.3
+## What is deliberately *not* in v0.4
 
 - CAPTCHA / anti-bot bypassing.
-- Large-scale retailer scraping.
+- A brittle home-grown scraper for every retailer; broad discovery is delegated to configured search/scraper providers.
 - Automatic checkout/purchasing.
 - Affiliate ranking influence (future affiliate links must never alter Deal Score).
 - Multi-user SaaS authentication/billing.
