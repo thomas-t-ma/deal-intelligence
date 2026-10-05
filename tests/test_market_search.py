@@ -76,7 +76,7 @@ def test_google_product_cluster_groups_title_variants():
 
 
 
-def test_standalone_gpu_cannot_outrank_complete_workstation():
+def test_corpus_relevance_prefers_requested_product_over_shared_component_spec():
     intent = parse_intent("Cheap but quality RTX 5090 workstation under $5000")
     graphics_card = OfferCandidate(
         provider="brightdata",
@@ -106,6 +106,62 @@ def test_standalone_gpu_cannot_outrank_complete_workstation():
     rows = rank_search_results([graphics_card, workstation], intent)
     assert rows[0]["candidate"].provider_item_id == "pc"
     gpu_row = next(row for row in rows if row["candidate"].provider_item_id == "gpu")
-    assert gpu_row["hard_mismatch"] is True
-    assert gpu_row["overall_score"] <= 25
-    assert any("standalone graphics card" in reason for reason in gpu_row["reasons"])
+    pc_row = next(row for row in rows if row["candidate"].provider_item_id == "pc")
+    assert pc_row["retrieval_score"] > gpu_row["retrieval_score"]
+    assert pc_row["fit_score"] > gpu_row["fit_score"]
+
+
+def test_general_relevance_prefers_laptop_over_laptop_charger():
+    intent = parse_intent("good laptop under $1200")
+    laptop = OfferCandidate(
+        provider="x", provider_item_id="laptop", title="Lenovo ThinkPad 14 Laptop",
+        url="", retailer="A", price=999, quality_score=80, quality_confidence=75, trust_score=90
+    )
+    charger = OfferCandidate(
+        provider="x", provider_item_id="charger", title="100W USB-C Laptop Charger Power Adapter",
+        url="", retailer="B", price=39, quality_score=90, quality_confidence=90, trust_score=90
+    )
+    rows = rank_search_results([charger, laptop], intent)
+    assert rows[0]["candidate"].provider_item_id == "laptop"
+
+
+def test_general_relevance_prefers_monitor_over_monitor_stand():
+    intent = parse_intent("27 inch QHD monitor under $250")
+    monitor = OfferCandidate(
+        provider="x", provider_item_id="monitor", title="Dell 27 QHD IPS Monitor",
+        url="", retailer="A", price=219, quality_score=82, quality_confidence=80, trust_score=90
+    )
+    stand = OfferCandidate(
+        provider="x", provider_item_id="stand", title="Dual 27 Inch Monitor Stand Desk Mount",
+        url="", retailer="B", price=49, quality_score=88, quality_confidence=85, trust_score=90
+    )
+    rows = rank_search_results([stand, monitor], intent)
+    assert rows[0]["candidate"].provider_item_id == "monitor"
+
+
+def test_general_relevance_prefers_ssd_over_enclosure():
+    intent = parse_intent("4TB NVMe SSD under $300")
+    ssd = OfferCandidate(
+        provider="x", provider_item_id="ssd", title="Crucial 4TB NVMe SSD PCIe 4.0",
+        url="", retailer="A", price=249, quality_score=84, quality_confidence=80, trust_score=90
+    )
+    enclosure = OfferCandidate(
+        provider="x", provider_item_id="enclosure", title="USB4 NVMe SSD Enclosure",
+        url="", retailer="B", price=79, quality_score=90, quality_confidence=90, trust_score=90
+    )
+    rows = rank_search_results([enclosure, ssd], intent)
+    assert rows[0]["candidate"].provider_item_id == "ssd"
+
+
+def test_general_relevance_prefers_tv_over_soundbar():
+    intent = parse_intent("OLED TV under $1000")
+    tv = OfferCandidate(
+        provider="x", provider_item_id="tv", title="LG 55 OLED Smart TV",
+        url="", retailer="A", price=899, quality_score=86, quality_confidence=85, trust_score=90
+    )
+    soundbar = OfferCandidate(
+        provider="x", provider_item_id="soundbar", title="Premium Soundbar for OLED TV",
+        url="", retailer="B", price=199, quality_score=92, quality_confidence=90, trust_score=90
+    )
+    rows = rank_search_results([soundbar, tv], intent)
+    assert rows[0]["candidate"].provider_item_id == "tv"
