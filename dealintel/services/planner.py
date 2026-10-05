@@ -83,16 +83,17 @@ def classify_category(text: str) -> str:
 
 def looks_exact_product(text: str) -> bool:
     lower = text.lower()
-    # Exact-product mode is conservative: require a SKU/model-like token that
-    # contains letters and digits in the same token (G914, WH-1000XM5, MZ-V9P4T0),
-    # or a strong brand/family/capacity combination. Separate spec tokens such as
-    # "RTX 5090" do not become exact products just because they contain a number.
-    if re.search(r"\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]{4,}\b", lower):
-        return True
-    brands = ("samsung", "sony", "lg", "dell", "lenovo", "asus", "apple", "wd", "crucial")
-    if any(brand in lower for brand in brands) and re.search(r'\b\d+(?:tb|gb|inch|")\b', lower):
-        return True
-    return False
+    # Exact mode is intentionally conservative. It is for SKU/model-like identifiers,
+    # not ordinary capacities, power ratings, refresh rates, or other specifications.
+    modelish = re.findall(
+        r"\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]{4,}\b",
+        lower,
+    )
+    spec_token = re.compile(
+        r"^\d+(?:gb|tb|mb|hz|khz|mhz|ghz|w|wh|mah|mp)$"
+        r"|^(?:ddr|usb|pcie)\d[a-z0-9-]*$"
+    )
+    return any(not spec_token.fullmatch(token) for token in modelish)
 
 
 def _core_query(intent: SearchIntent) -> str:
