@@ -145,14 +145,12 @@ async def run_search(
         for label, coroutine in curated:
             jobs.append(guarded(label, lambda c=coroutine: c))
 
-    raw_count = 0
     if jobs:
         results = await asyncio.gather(*jobs)
         for label, result in results:
             if isinstance(result, Exception):
                 errors.append(f"{label}: {type(result).__name__}: {result}")
                 continue
-            raw_count += len(result)
             if result and isinstance(result[0], EvidenceItem):
                 evidence.extend(result)
                 if "retailer" in label.lower() or "web" in label.lower():
