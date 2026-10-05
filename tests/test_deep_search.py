@@ -48,3 +48,25 @@ def test_deep_search_orchestrates_planned_queries():
     assert outcome.rows
     assert outcome.providers == ["Bright Data Google Shopping/Search"]
     assert outcome.rows[0]["fit_score"] >= 50
+
+
+
+class PartiallySlowBrightData(FakeBrightData):
+    async def evidence_query(self, query, limit=10):
+        if query.endswith(" review"):
+            raise TimeoutError("simulated slow evidence query")
+        return await super().evidence_query(query, limit=limit)
+
+
+def test_partial_evidence_timeout_does_not_mark_search_failed():
+    outcome = asyncio.run(
+        run_search(
+            parse_intent("Samsung 990 Pro 4TB under $250"),
+            mode="deep",
+            user_agent="test",
+            brightdata=PartiallySlowBrightData(),
+            include_curated=False,
+        )
+    )
+    assert outcome.rows
+    assert outcome.errors == []
