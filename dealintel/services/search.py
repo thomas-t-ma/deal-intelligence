@@ -243,7 +243,7 @@ def _relevance_features(tokens: list[str]) -> list[tuple[str, float]]:
         if key not in seen:
             seen.add(key)
             features.append((token, 1.0))
-    for left, right in zip(tokens, tokens[1:]):
+    for left, right in zip(tokens, tokens[1:], strict=False):
         phrase = f"{left} {right}"
         key = f"b:{phrase}"
         if key not in seen:
@@ -284,7 +284,7 @@ def _corpus_relevance_scores(
 
     denominator = sum(weight for _feature, weight in weighted_features) or 1.0
     scores: dict[int, float] = {}
-    for candidate, text in zip(candidates, texts):
+    for candidate, text in zip(candidates, texts, strict=True):
         matched = sum(
             weight for feature, weight in weighted_features
             if _feature_present(text, feature)
