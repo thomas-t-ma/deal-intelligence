@@ -65,17 +65,23 @@ def _phrase_present(text: str, phrase: str) -> bool:
 
 
 def classify_category(text: str) -> str:
-    """Infer a broad product class from product nouns, not from a specific search case."""
+    """Infer a broad product class from the primary product phrase."""
     lower = " ".join(text.lower().split())
+    primary = re.split(
+        r"\b(?:for|compatible with|fits?|designed for|replacement for)\b",
+        lower,
+        maxsplit=1,
+    )[0].strip() or lower
+
     best = ("general", 0.0)
     for category, strong_terms, weak_terms in _CATEGORY_RULES:
-        score = 0.0
-        for phrase in strong_terms:
-            if _phrase_present(lower, phrase):
-                score += 3.0 + 1.5 * len(phrase.split())
-        for phrase in weak_terms:
-            if _phrase_present(lower, phrase):
-                score += 1.0
+        strong_scores = [
+            3.0 + 1.5 * len(phrase.split())
+            for phrase in strong_terms
+            if _phrase_present(primary, phrase)
+        ]
+        weak_hits = sum(1 for phrase in weak_terms if _phrase_present(primary, phrase))
+        score = (max(strong_scores) if strong_scores else 0.0) + min(2.0, float(weak_hits))
         if score > best[1]:
             best = (category, score)
     return best[0]
