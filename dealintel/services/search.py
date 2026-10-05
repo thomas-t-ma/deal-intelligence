@@ -4,6 +4,7 @@ import json
 import re
 import statistics
 from collections import defaultdict
+
 import httpx
 
 from ..identity import normalize_identifier, normalize_text
