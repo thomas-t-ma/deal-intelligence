@@ -50,3 +50,23 @@ def test_parse_brightdata_web_evidence():
     assert len(evidence) == 2
     assert evidence[0].kind == "review"
     assert evidence[1].kind == "community"
+
+
+def test_professional_review_score_is_extracted_conservatively():
+    payload = {
+        "organic": [
+            {
+                "title": "Product review — 4.5/5",
+                "link": "https://www.pcmag.com/reviews/example",
+                "snippet": "Our tested rating is 4.5/5.",
+            },
+            {
+                "title": "Owner says 5/5",
+                "link": "https://www.reddit.com/r/example/comments/x",
+                "snippet": "I personally give it 5/5.",
+            },
+        ]
+    }
+    evidence = parse_web_payload(payload)
+    assert evidence[0].score == 90
+    assert evidence[1].score is None
