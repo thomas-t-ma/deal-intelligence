@@ -154,7 +154,7 @@ def parse_shopping_payload(payload: Any, provider: str = "brightdata") -> list[O
                 quality_reason=reason,
                 trust_score=trust,
                 extraction_confidence=88.0,
-                raw={"source": source, "brightdata": item},
+                raw={"source": source, "brightdata": item, "google_product_id": _first(item, "product_id")},
             )
         )
     return results
@@ -185,6 +185,7 @@ def parse_web_payload(payload: Any, provider: str = "brightdata") -> list[Eviden
         seen.add(link)
         host = (urlparse(link).hostname or "").lower().removeprefix("www.")
         kind = "community" if host in {"reddit.com", "slickdeals.net"} else "review"
+        score = None if kind == "community" else _review_score(f"{title} {snippet}")
         output.append(
             EvidenceItem(
                 source=host or provider,
@@ -192,6 +193,7 @@ def parse_web_payload(payload: Any, provider: str = "brightdata") -> list[Eviden
                 url=link,
                 snippet=snippet[:1200],
                 kind=kind,
+                score=score,
                 raw={"brightdata": item},
             )
         )
