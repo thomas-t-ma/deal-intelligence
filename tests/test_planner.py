@@ -19,8 +19,10 @@ def test_quick_plan_stays_small():
 
 
 def test_exact_product_detection():
-    assert looks_exact_product("Samsung 990 Pro 4TB")
     assert looks_exact_product("PowerSpec G914")
+    assert looks_exact_product("Sony WH-1000XM5")
+    assert not looks_exact_product("Samsung SSD 4TB")
+    assert not looks_exact_product("Dell laptop 32GB")
     assert not looks_exact_product("Cheap but quality RTX 5090 workstation")
     assert classify_category("Samsung 990 Pro 4TB NVMe SSD") == "ssd"
 
