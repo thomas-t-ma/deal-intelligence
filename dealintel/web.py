@@ -21,6 +21,7 @@ from .providers import (
     DEALNEWS_EDITORS,
     NINE_TO_FIVE_STEALS,
     BestBuyProvider,
+    BrightDataProvider,
     CuratedFeedProvider,
     SerpApiProvider,
     SlickdealsProvider,
@@ -34,6 +35,7 @@ from .services.catalog import (
     update_listing_adjustments,
     upsert_offer,
 )
+from .services.deep_search import run_search
 from .services.scheduler import RefreshScheduler
 from .services.search import ollama_parse_intent, parse_intent, rank_search_results
 from .trust import trust_for_url
@@ -54,7 +56,7 @@ def _base_context(request: Request) -> dict:
     return {
         "request": request,
         "csrf": request.app.state.csrf_token,
-        "app_version": "0.3.0",
+        "app_version": "0.4.0",
     }
 
 
@@ -71,7 +73,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Deal Intelligence",
-    version="0.3.0",
+    version="0.4.0",
     description="Quality-aware deal discovery and price intelligence.",
     lifespan=lifespan,
 )
@@ -329,7 +331,19 @@ def search_page(request: Request):
     return templates.TemplateResponse(
         request,
         "search.html",
-        _base_context(request) | {"rows": None, "query": "", "intent": None, "providers": []},
+        _base_context(request)
+        | {
+            "rows": None,
+            "query": "",
+            "intent": None,
+            "providers": [],
+            "plan": None,
+            "mode": "quick",
+            "candidate_count": 0,
+            "deduplicated_count": 0,
+            "query_count": 0,
+            "brightdata_configured": bool(store.get("brightdata_api_key")),
+        },
     )
 
 
@@ -337,11 +351,13 @@ def search_page(request: Request):
 async def search_products(
     request: Request,
     query: str = Form(...),
-    include_bestbuy: str = Form(""),
+    mode: str = Form("quick"),
     csrf: str = Form(...),
 ):
     _csrf(request, csrf)
+    mode = "deep" if mode == "deep" else "quick"
     intent = parse_intent(query)
+
     ollama_url = store.get("ollama_url")
     ollama_model = store.get("ollama_model", "qwen3.5:4b")
     if ollama_url and ollama_model:
@@ -349,42 +365,50 @@ async def search_products(
         if enhanced:
             intent = enhanced
 
-    providers = ["Slickdeals Frontpage", "DealNews Editors' Choice", "9to5Toys Steals"]
-    tasks = [
-        SlickdealsProvider(config.user_agent).search(intent, limit=40),
-        CuratedFeedProvider(DEALNEWS_EDITORS, config.user_agent).search(intent, limit=30),
-        CuratedFeedProvider(NINE_TO_FIVE_STEALS, config.user_agent).search(intent, limit=30),
-    ]
+    bright_key = store.get("brightdata_api_key")
+    bright = (
+        BrightDataProvider(
+            bright_key,
+            zone=store.get("brightdata_zone", "serp_api1") or "serp_api1",
+        )
+        if bright_key
+        else None
+    )
+
     serp_key = store.get("serpapi_api_key")
-    if serp_key:
-        providers.append("Google Shopping via SerpApi")
-        location = store.get("search_location", "Atlanta, Georgia, United States") or "Atlanta, Georgia, United States"
-        tasks.append(SerpApiProvider(serp_key, location=location).search(intent, limit=30))
+    location = store.get("search_location", "Atlanta, Georgia, United States") or "Atlanta, Georgia, United States"
+    serp = SerpApiProvider(serp_key, location=location) if serp_key else None
 
     bestbuy_key = store.get("bestbuy_api_key")
     bestbuy_ack = (store.get("bestbuy_terms_ack") or "").lower() in {"1", "true", "yes", "on"}
-    if include_bestbuy and bestbuy_key and bestbuy_ack:
-        providers.append("Best Buy live API")
-        tasks.append(BestBuyProvider(bestbuy_key).search(intent, limit=30))
+    bestbuy = BestBuyProvider(bestbuy_key) if bestbuy_key and bestbuy_ack else None
 
-    candidates = []
-    errors = []
-    if tasks:
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for result in results:
-            if isinstance(result, Exception):
-                errors.append(f"{type(result).__name__}: {result}")
-            else:
-                candidates.extend(result)
-    rows = rank_search_results(candidates, intent)
+    outcome = await run_search(
+        intent,
+        mode=mode,
+        user_agent=config.user_agent,
+        brightdata=bright,
+        serpapi=serp,
+        bestbuy=bestbuy,
+        ollama_url=ollama_url,
+        ollama_model=ollama_model,
+        include_curated=True,
+    )
+
     ctx = _base_context(request) | {
-        "rows": rows,
+        "rows": outcome.rows,
         "query": query,
         "intent": intent,
-        "providers": providers,
-        "errors": errors,
+        "providers": outcome.providers,
+        "errors": outcome.errors,
+        "plan": outcome.plan,
+        "mode": mode,
+        "candidate_count": outcome.candidate_count,
+        "deduplicated_count": outcome.deduplicated_count,
+        "query_count": outcome.query_count,
+        "brightdata_configured": bool(bright_key),
         "serp_configured": bool(serp_key),
-        "bestbuy_configured": bool(bestbuy_key and bestbuy_ack),
+        "bestbuy_configured": bool(bestbuy),
     }
     return templates.TemplateResponse(request, "search.html", ctx)
 
@@ -392,7 +416,8 @@ async def search_products(
 @app.get("/settings", response_class=HTMLResponse)
 def settings(request: Request):
     keys = [
-        "serpapi_api_key", "bestbuy_api_key", "ollama_url", "ollama_model", "search_location",
+        "brightdata_api_key", "brightdata_zone", "serpapi_api_key", "bestbuy_api_key",
+        "ollama_url", "ollama_model", "search_location",
         "smtp_host", "smtp_port", "smtp_username", "smtp_password", "smtp_from", "alert_email",
     ]
     values = {key: store.masked(key) if "key" in key or "password" in key else (store.get(key) or "") for key in keys}
@@ -441,10 +466,11 @@ def health(session: Session = Depends(get_session)):
     session.execute(select(1))
     return {
         "status": "ok",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "database": str(config.db_path),
         "providers": {
             "url_tracker": True,
+            "brightdata": bool(store.get("brightdata_api_key")),
             "serpapi": bool(store.get("serpapi_api_key")),
             "bestbuy": bool(store.get("bestbuy_api_key")),
             "slickdeals": True,
