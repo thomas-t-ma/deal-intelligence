@@ -125,6 +125,9 @@ def _major_tokens(text: str) -> tuple[str, ...]:
 
 
 def _identity_key(candidate: OfferCandidate) -> str:
+    google_product_id = candidate.raw.get("google_product_id")
+    if google_product_id:
+        return f"google-product:{google_product_id}"
     if candidate.gtin:
         return f"gtin:{normalize_identifier(candidate.gtin)}"
     brand = normalize_text(candidate.brand)
@@ -269,6 +272,14 @@ def score_search_candidate(
 
     quality = candidate.quality_score if candidate.quality_score is not None else 58.0
     quality_conf = candidate.quality_confidence if candidate.quality_confidence is not None else 25.0
+    evidence_scores = [item.score for item in matched if item.score is not None]
+    if evidence_scores:
+        review_quality = statistics.mean(evidence_scores)
+        if candidate.quality_score is None:
+            quality = review_quality
+        else:
+            quality = 0.65 * quality + 0.35 * review_quality
+        quality_conf = min(95.0, quality_conf + min(30.0, len(evidence_scores) * 10.0))
     if source_count:
         quality_conf = min(95.0, quality_conf + min(28.0, source_count * 7.0))
 
