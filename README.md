@@ -18,7 +18,7 @@ The app tracks real observed prices, calculates effective price (including shipp
 - **Effective-price accounting** for shipping, memberships, coupons and cashback.
 - **Conservative product identity resolution** using GTIN/model/MPN first and fuzzy titles only when identifiers do not conflict.
 - **Natural-language shopping requests** with a deterministic parser and optional local Ollama enhancement.
-- **Zero-key live deal discovery** from the Slickdeals Frontpage RSS feed, using merchant metadata and community/editor signals.
+- **Zero-key live deal discovery** from Slickdeals Frontpage, DealNews Editors’ Choice, and 9to5Toys Steals, combining community and human-editor signals.
 - **Broad Google Shopping discovery** through optional SerpApi integration.
 - **Best Buy live search/open-box provider code** behind explicit terms acknowledgement; it is intentionally not the historical-data foundation.
 - **Manual listing mode** for retailers that block automated access or do not expose trustworthy structured metadata.
@@ -26,7 +26,7 @@ The app tracks real observed prices, calculates effective price (including shipp
 - **Local alert history** plus optional SMTP email delivery.
 - **Background refresh loop** while the service is running, plus `dealintel refresh` for schedulers/cron.
 - **Docker / Compose** support.
-- **30 automated tests** plus a smoke-tested FastAPI UI.
+- **33 automated tests** plus a smoke-tested FastAPI UI.
 
 ## Fastest setup on Windows
 
@@ -79,10 +79,15 @@ If a retailer blocks ordinary HTTP fetching, use **manual listing mode**. The pr
 
 ## Broad discovery
 
-### Slickdeals Frontpage (built in, no key)
+### Curated deal feeds (built in, no key)
 
-The **Ridiculous Deals** page now scouts the current Slickdeals Frontpage automatically, and natural-language search uses the same feed even with no API keys configured. Frontpage/community signals help discover promising bargains; your own tracked price history remains the higher-confidence evidence for deciding whether a current price is genuinely rare.
+The **Ridiculous Deals** page and natural-language search scout three independent human-filtered sources automatically:
 
+- **Slickdeals Frontpage** — community-ranked deals and merchant metadata.
+- **DealNews Editors’ Choice** — staff-selected deals from DealNews’ official RSS feed.
+- **9to5Toys Steals** — hand-curated standout price drops from the dedicated Steals RSS feed.
+
+These feeds are discovery signals rather than historical truth. Your own tracked price history remains the higher-confidence evidence for deciding whether a current price is genuinely rare.
 
 ### SerpApi / Google Shopping
 
@@ -157,7 +162,7 @@ The URL tracker:
 - accepts only HTTP(S),
 - resolves hostnames and blocks loopback/private/link-local/reserved IPs,
 - re-validates redirects,
-- respects robots.txt by default,
+- can respect robots.txt when `DEALINTEL_RESPECT_ROBOTS=true`,
 - limits response size,
 - rate-limits requests per host,
 - only records structured product prices,
@@ -195,8 +200,8 @@ GitHub Actions runs tests on Python 3.11 and 3.13.
                  discovery / tracking
           ┌────────────┼────────────┐
           │            │            │
-     product URLs   SerpApi     retailer APIs
-          │         (optional)    (optional)
+     product URLs  curated feeds  SerpApi / APIs
+          │          (zero-key)     (optional)
           └────────────┼────────────┘
                        ↓
                 identity resolver
@@ -212,7 +217,7 @@ GitHub Actions runs tests on Python 3.11 and 3.13.
           ridiculous feed      watches/alerts
 ```
 
-## What is deliberately *not* in v0.1
+## What is deliberately *not* in v0.3
 
 - CAPTCHA / anti-bot bypassing.
 - Large-scale retailer scraping.
