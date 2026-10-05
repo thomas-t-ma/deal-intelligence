@@ -108,9 +108,13 @@ def classify_category(text: str) -> str:
 
 def looks_exact_product(text: str) -> bool:
     lower = text.lower()
-    # Model-like identifiers strongly suggest an exact-product search.
-    if re.search(r"\b[a-z]{1,6}[- ]?\d{3,}[a-z0-9-]*\b", lower):
-        return True
+    # Model-like identifiers strongly suggest an exact-product search, but generic
+    # component families such as "RTX 5090" are categories, not exact products.
+    model_match = re.search(r"\b[a-z]{1,6}[- ]?\d{3,}[a-z0-9-]*\b", lower)
+    if model_match:
+        token = re.sub(r"\s+", " ", model_match.group(0)).strip()
+        if not re.fullmatch(r"(?:rtx|rx)[ -]?\d{4}(?:[ -]?(?:ti|super|xt|xtx))?", token):
+            return True
     # Brand + product family + capacity/size often indicates a known SKU/family.
     brands = ("samsung", "sony", "lg", "dell", "lenovo", "asus", "apple", "wd", "crucial")
     if any(brand in lower for brand in brands) and re.search(r"\b\d+(?:tb|gb|inch|\")\b", lower):
@@ -147,9 +151,14 @@ def build_search_plan(intent: SearchIntent, mode: str = "quick") -> SearchPlan:
     category = intent.category or classify_category(intent.text)
     exact = intent.exact_product or looks_exact_product(intent.text)
     core = _core_query(intent)
+    shopping_core = core
+    if category == "workstation" and not exact:
+        # Google Shopping often interprets a GPU family as a request for the bare
+        # graphics card. Explicitly anchor broad workstation searches to a full PC.
+        shopping_core = f"{core} complete desktop computer"
 
     specs: list[QuerySpec] = [
-        QuerySpec(core, "shopping", "primary", 1.0),
+        QuerySpec(shopping_core, "shopping", "primary", 1.0),
     ]
 
     if exact:
@@ -157,12 +166,13 @@ def build_search_plan(intent: SearchIntent, mode: str = "quick") -> SearchPlan:
     else:
         expansions = _CATEGORY_EXPANSIONS.get(category, _CATEGORY_EXPANSIONS["general"])
         for suffix in expansions[: 1 if mode == "quick" else 4]:
-            specs.append(QuerySpec(f"{core} {suffix}", "shopping", "category-expansion", 0.9))
+            specs.append(QuerySpec(f"{shopping_core} {suffix}", "shopping", "category-expansion", 0.9))
 
     # A few retailer-focused queries catch products that generic shopping results miss.
     retailer_count = 2 if mode == "quick" else len(_RETAILERS)
     for domain in _RETAILERS[:retailer_count]:
-        specs.append(QuerySpec(f"site:{domain} {core}", "web", "retailer-discovery", 0.85))
+        retailer_core = shopping_core if category == "workstation" and not exact else core
+        specs.append(QuerySpec(f"site:{domain} {retailer_core}", "web", "retailer-discovery", 0.85))
 
     # Evidence queries are not treated as product offers. They are used for quality/confidence.
     specs.append(QuerySpec(f"{core} review", "web", "quality-evidence", 0.75))
