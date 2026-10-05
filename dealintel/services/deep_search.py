@@ -174,7 +174,7 @@ async def run_search(
         plan=plan,
         providers=providers,
         errors=list(dict.fromkeys(errors))[:12],
-        candidate_count=raw_count + len(candidates),
+        candidate_count=len(candidates),
         deduplicated_count=len(deduped),
         query_count=len(plan.queries),
     )
