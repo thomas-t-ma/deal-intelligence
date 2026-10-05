@@ -77,6 +77,7 @@ class SerpApiProvider(DiscoveryProvider):
                         "tag": item.get("tag"),
                         "badge": item.get("badge"),
                         "source": source,
+                        "google_product_id": item.get("product_id"),
                     },
                 )
             )
