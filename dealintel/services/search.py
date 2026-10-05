@@ -51,7 +51,7 @@ def parse_intent(text: str) -> SearchIntent:
 
     excluded: list[str] = []
     if "gaming irrelevant" in lower or "gaming performance irrelevant" in lower:
-        excluded.extend(["rgb"])
+        excluded.extend(["gaming", "rgb"])
     if "no rgb" in lower:
         excluded.append("rgb")
 
