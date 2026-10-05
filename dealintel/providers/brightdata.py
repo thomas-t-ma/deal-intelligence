@@ -239,7 +239,7 @@ class BrightDataProvider(DiscoveryProvider):
             "https://www.google.com/search?"
             f"q={quote_plus(query)}&gl={quote_plus(self.country)}&hl={quote_plus(self.language)}{suffix}"
         )
-        payload = {"zone": self.zone, "url": url, "format": "json"}
+        payload = {"zone": self.zone, "url": url, "format": "json", "country": self.country}
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
