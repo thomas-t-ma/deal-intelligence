@@ -207,11 +207,11 @@ def _candidate_search_text(candidate: OfferCandidate) -> str:
 def _query_relevance_tokens(text: str) -> list[str]:
     cleaned = text.lower()
     cleaned = re.sub(
-        r"\\b(?:under|less than|up to|budget(?: of)?|max(?:imum)?(?: price)?)\\s*\\$?\\s*[0-9][0-9,]*(?:\\.\\d+)?",
+        r"\b(?:under|less than|up to|budget(?: of)?|max(?:imum)?(?: price)?)\s*\$?\s*[0-9][0-9,]*(?:\.\d+)?",
         " ",
         cleaned,
     )
-    cleaned = re.sub(r"\\$\\s*[0-9][0-9,]*(?:\\.\\d+)?", " ", cleaned)
+    cleaned = re.sub(r"\$\s*[0-9][0-9,]*(?:\.\d+)?", " ", cleaned)
     tokens = [
         token for token in normalize_text(cleaned).split()
         if token not in _QUERY_NOISE and len(token) > 1
