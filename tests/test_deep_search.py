@@ -1,4 +1,4 @@
-import pytest
+import asyncio
 
 from dealintel.services.deep_search import run_search
 from dealintel.services.search import parse_intent
@@ -34,14 +34,15 @@ class FakeBrightData:
         ]
 
 
-@pytest.mark.asyncio
-async def test_deep_search_orchestrates_planned_queries():
-    outcome = await run_search(
-        parse_intent("Samsung 990 Pro 4TB under $250"),
-        mode="deep",
-        user_agent="test",
-        brightdata=FakeBrightData(),
-        include_curated=False,
+def test_deep_search_orchestrates_planned_queries():
+    outcome = asyncio.run(
+        run_search(
+            parse_intent("Samsung 990 Pro 4TB under $250"),
+            mode="deep",
+            user_agent="test",
+            brightdata=FakeBrightData(),
+            include_curated=False,
+        )
     )
     assert outcome.query_count > 5
     assert outcome.rows
