@@ -73,3 +73,39 @@ def test_google_product_cluster_groups_title_variants():
     rows = rank_search_results([a, b], parse_intent("Samsung 990 Pro 4TB"))
     assert rows[0]["market_typical"] == 240
     assert rows[0]["market_offer_count"] == 2
+
+
+
+def test_standalone_gpu_cannot_outrank_complete_workstation():
+    intent = parse_intent("Cheap but quality RTX 5090 workstation under $5000")
+    graphics_card = OfferCandidate(
+        provider="brightdata",
+        provider_item_id="gpu",
+        title="ASUS ROG Astral GeForce RTX 5090 32GB GDDR7 OC Graphics Card",
+        url="https://example.com/gpu",
+        retailer="Example",
+        price=1999,
+        quality_score=95,
+        quality_confidence=95,
+        trust_score=95,
+        extraction_confidence=95,
+    )
+    workstation = OfferCandidate(
+        provider="brightdata",
+        provider_item_id="pc",
+        title="Creator Workstation Desktop Ryzen 9 RTX 5090 64GB RAM 2TB SSD",
+        url="https://example.com/pc",
+        retailer="Example",
+        price=4499,
+        quality_score=82,
+        quality_confidence=80,
+        trust_score=90,
+        extraction_confidence=92,
+    )
+
+    rows = rank_search_results([graphics_card, workstation], intent)
+    assert rows[0]["candidate"].provider_item_id == "pc"
+    gpu_row = next(row for row in rows if row["candidate"].provider_item_id == "gpu")
+    assert gpu_row["hard_mismatch"] is True
+    assert gpu_row["overall_score"] <= 25
+    assert any("standalone graphics card" in reason for reason in gpu_row["reasons"])
