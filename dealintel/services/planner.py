@@ -61,7 +61,7 @@ def _phrase_present(text: str, phrase: str) -> bool:
     words = [re.escape(part) for part in phrase.lower().split() if part]
     if not words:
         return False
-    return re.search(r"\\b" + r"\\s+".join(words) + r"\\b", text) is not None
+    return re.search(r"\b" + r"\s+".join(words) + r"\b", text) is not None
 
 
 def classify_category(text: str) -> str:
@@ -87,10 +87,10 @@ def looks_exact_product(text: str) -> bool:
     # contains letters and digits in the same token (G914, WH-1000XM5, MZ-V9P4T0),
     # or a strong brand/family/capacity combination. Separate spec tokens such as
     # "RTX 5090" do not become exact products just because they contain a number.
-    if re.search(r"\\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\\d)[a-z0-9-]{4,}\\b", lower):
+    if re.search(r"\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]{4,}\b", lower):
         return True
     brands = ("samsung", "sony", "lg", "dell", "lenovo", "asus", "apple", "wd", "crucial")
-    if any(brand in lower for brand in brands) and re.search(r"\\b\\d+(?:tb|gb|inch|\\\")\\b", lower):
+    if any(brand in lower for brand in brands) and re.search(r'\b\d+(?:tb|gb|inch|")\b', lower):
         return True
     return False
 
