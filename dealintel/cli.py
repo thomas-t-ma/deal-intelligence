@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import webbrowser
+from pathlib import Path
 
 import uvicorn
 
+from .benchmark import run_and_save
 from .config import CredentialStore, load_config
 from .db import init_db
 from .services.scheduler import RefreshScheduler
@@ -41,6 +43,21 @@ def cmd_refresh(_args) -> int:  # noqa: ANN001
     return 0 if result["failed"] == 0 else 2
 
 
+
+def cmd_benchmark(args) -> int:  # noqa: ANN001
+    output = Path(args.output).expanduser().resolve() if args.output else None
+    report, path = run_and_save(mode=args.mode, output=output)
+    summary = report["summary"]
+    print(f"Benchmark saved to {path}")
+    print(
+        f"Cases: {summary['cases']} | nonempty: {summary['nonempty_fraction']:.0%} | "
+        f"broad search configured: {report['broad_search_configured']}"
+    )
+    if not report["broad_search_configured"]:
+        print("WARNING: benchmark ran without Bright Data or SerpApi; discovery metrics are not meaningful.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="dealintel", description="Deal Intelligence")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -57,6 +74,11 @@ def main() -> int:
 
     refresh = sub.add_parser("refresh", help="Refresh due tracked URLs and evaluate alerts once")
     refresh.set_defaults(func=cmd_refresh)
+
+    benchmark = sub.add_parser("benchmark", help="Run the v0.4 real-shopping benchmark suite")
+    benchmark.add_argument("--mode", choices=["quick", "deep"], default="deep")
+    benchmark.add_argument("--output", default=None, help="Optional JSON report path")
+    benchmark.set_defaults(func=cmd_benchmark)
 
     args = parser.parse_args()
     return int(args.func(args))
