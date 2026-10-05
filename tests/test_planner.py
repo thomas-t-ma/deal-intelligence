@@ -32,6 +32,9 @@ def test_category_classifier_uses_product_nouns_not_shared_specs():
     assert classify_category("ASUS GeForce RTX 5090 32GB graphics card") == "gpu"
     assert classify_category("27 inch dual monitor stand") == "monitor_stand"
     assert classify_category("4TB NVMe SSD") == "ssd"
+    assert classify_category("USB4 NVMe SSD Enclosure") == "ssd_enclosure"
+    assert classify_category("Premium Soundbar for OLED TV") == "soundbar"
+    assert classify_category("100W Charger for Dell Laptop") == "laptop_charger"
 
 
 def test_planner_does_not_inject_case_specific_product_terms():
