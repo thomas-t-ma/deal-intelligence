@@ -7,9 +7,11 @@
 <section class="panel">
   <div class="section-heading tight"><div><div class="eyebrow">DISCOVERY</div><h2>Shopping providers</h2></div></div>
   <div class="settings-grid">
-    <label>SerpApi API key <input type="password" name="serpapi_api_key" value="{{ values.serpapi_api_key }}" autocomplete="off"><small>Optional. Unlocks Google Shopping discovery. Current free plan can cover light personal use.</small></label>
-    <label>Search location <input name="search_location" value="{{ values.search_location or 'Atlanta, Georgia, United States' }}"><small>City-level context improves taxes/availability/local shopping results.</small></label>
-    <label>Best Buy API key <input type="password" name="bestbuy_api_key" value="{{ values.bestbuy_api_key }}" autocomplete="off"><small>Optional live-only source. We do not use it as the historical-price foundation.</small></label>
+    <label>Bright Data API token <input type="password" name="brightdata_api_key" value="{{ values.brightdata_api_key }}" autocomplete="off"><small>Recommended. Powers v0.4 Deep Search across Google Shopping and targeted web/review searches. Store the token here locally; do not paste it into chat.</small></label>
+    <label>Bright Data SERP zone <input name="brightdata_zone" value="{{ values.brightdata_zone or 'serp_api1' }}"><small>Usually <code>serp_api1</code>. Change this only if your Bright Data account uses a different SERP zone.</small></label>
+    <label>SerpApi API key <input type="password" name="serpapi_api_key" value="{{ values.serpapi_api_key }}" autocomplete="off"><small>Optional fallback Google Shopping provider. It is not used for every expanded query when Bright Data is configured.</small></label>
+    <label>Search location <input name="search_location" value="{{ values.search_location or 'Atlanta, Georgia, United States' }}"><small>City-level context is retained for providers that support localized results.</small></label>
+    <label>Best Buy API key <input type="password" name="bestbuy_api_key" value="{{ values.bestbuy_api_key }}" autocomplete="off"><small>Optional live catalog/open-box source. Automatically included in searches when configured.</small></label>
     <label class="check wide"><input type="checkbox" name="bestbuy_terms_ack" {% if bestbuy_terms_ack %}checked{% endif %}> I have reviewed Best Buy’s current developer terms and will use this integration in a compliant way. <small>The app will not enable Best Buy live search until this is checked.</small></label>
   </div>
 </section>

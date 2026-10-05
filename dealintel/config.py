@@ -47,7 +47,7 @@ def load_config() -> Config:
         max_response_bytes=int(os.getenv("DEALINTEL_MAX_RESPONSE_BYTES", str(5 * 1024 * 1024))),
         user_agent=os.getenv(
             "DEALINTEL_USER_AGENT",
-            "Mozilla/5.0 (compatible; DealIntelligence/0.2; personal price tracker)",
+            "Mozilla/5.0 (compatible; DealIntelligence/0.4; personal price tracker)",
         ),
     )
 
@@ -60,6 +60,8 @@ class CredentialStore:
     """
 
     ENV_MAP = {
+        "brightdata_api_key": "DEALINTEL_BRIGHTDATA_API_KEY",
+        "brightdata_zone": "DEALINTEL_BRIGHTDATA_ZONE",
         "serpapi_api_key": "DEALINTEL_SERPAPI_API_KEY",
         "bestbuy_api_key": "DEALINTEL_BESTBUY_API_KEY",
         "bestbuy_terms_ack": "DEALINTEL_BESTBUY_TERMS_ACK",

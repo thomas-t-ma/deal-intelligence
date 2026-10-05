@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deal-intelligence"
-version = "0.3.0"
+version = "0.4.0"
 description = "Quality-aware deal discovery and price intelligence for products worth buying."
 readme = "README.md"
 requires-python = ">=3.11"

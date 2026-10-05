@@ -74,3 +74,45 @@ class SearchIntent:
     preferred_terms: tuple[str, ...] = ()
     excluded_terms: tuple[str, ...] = ()
     location: str | None = None
+    category: str | None = None
+    exact_product: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class QuerySpec:
+    query: str
+    kind: str = "shopping"
+    purpose: str = "discovery"
+    weight: float = 1.0
+
+
+@dataclass(slots=True)
+class SearchPlan:
+    mode: str
+    intent: SearchIntent
+    queries: list[QuerySpec]
+    category: str
+    exact_product: bool
+    explanation: str
+
+
+@dataclass(slots=True)
+class EvidenceItem:
+    source: str
+    title: str
+    url: str
+    snippet: str = ""
+    kind: str = "web"
+    score: float | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class SearchOutcome:
+    rows: list[dict[str, Any]]
+    plan: SearchPlan
+    providers: list[str]
+    errors: list[str]
+    candidate_count: int
+    deduplicated_count: int
+    query_count: int
