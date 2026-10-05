@@ -33,6 +33,9 @@ offer normalization + evidence separation
         ↓
 conservative product identity / dedup
         ↓
+corpus-aware lexical relevance
++ broad product-class compatibility
+        ↓
 same-product live market distribution
         ↓
 Fit · Quality · Deal · Confidence
@@ -47,6 +50,12 @@ ranked purchasing shortlist
 **Quick Search** deliberately stays small. It is intended for known products and straightforward category shopping.
 
 **Deep Search** expands the request into category variants, retailer-targeted searches, professional review searches, and community evidence searches. Expanded queries are labeled by purpose so organic review pages are not confused with merchant offers.
+
+### Relevance
+
+Search relevance is deliberately general rather than query-specific. The ranker computes IDF-style query/title relevance across the returned candidate pool, so terms that distinguish the requested item carry more weight than terms shared by nearly every result. A broad product-class classifier is used only as a soft compatibility signal; unknown classes stay neutral instead of being rejected.
+
+For titles that describe an accessory or replacement using relations such as `for`, `compatible with`, or `replacement for`, lexical relevance is computed from the primary item being sold rather than the compatibility target. Structured provider categories are used when available. The optional Ollama pass separately judges whether a result is the same kind of purchasable object, but deterministic price/deal math remains authoritative.
 
 ### Market price
 

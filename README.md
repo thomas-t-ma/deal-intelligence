@@ -18,7 +18,7 @@ The app tracks real observed prices, calculates effective price (including shipp
 - **Effective-price accounting** for shipping, memberships, coupons and cashback.
 - **Conservative product identity resolution** using GTIN/model/MPN first and fuzzy titles only when identifiers do not conflict.
 - **Natural-language shopping requests** with a deterministic parser and optional local Ollama enhancement.
-- **Quick Search / Deep Search** with category-aware query expansion, retailer-targeted searches, review/community evidence, and market-aware ranking.
+- **Quick Search / Deep Search** with query expansion, retailer-targeted searches, review/community evidence, corpus-aware relevance, and market-aware ranking.
 - **Bright Data Google Shopping + Search** as the recommended broad discovery backend for v0.4.
 - **Zero-key curated signals** from Slickdeals Frontpage, DealNews Editors’ Choice, and 9to5Toys Steals; these are now secondary signals rather than the primary search universe.
 - **SerpApi fallback** for Google Shopping when Bright Data is not configured.
@@ -28,7 +28,7 @@ The app tracks real observed prices, calculates effective price (including shipp
 - **Local alert history** plus optional SMTP email delivery.
 - **Background refresh loop** while the service is running, plus `dealintel refresh` for schedulers/cron.
 - **Docker / Compose** support.
-- **44 automated tests** plus CI startup smoke tests on Python 3.11 and 3.13.
+- **52 automated tests** plus CI startup smoke tests on Python 3.11 and 3.13.
 
 ## Fastest setup on Windows
 
@@ -85,7 +85,7 @@ The main search flow is now designed to answer:
 
 > What are the best products for this need, and what is the best way to buy them right now?
 
-**Quick Search** uses a compact plan for known products and simple shopping tasks. **Deep Search** expands the request into multiple shopping, retailer, review, and community queries. Results are ranked using separate **Fit**, **Quality**, **Deal**, and **Confidence** signals.
+**Quick Search** uses a compact plan for known products and simple shopping tasks. **Deep Search** expands the request into multiple shopping, retailer, review, and community queries. Results are ranked using separate **Fit**, **Quality**, **Deal**, and **Confidence** signals. Fit now combines corpus-aware query relevance, broad product-class compatibility, explicit specification checks, and optional local semantic reranking rather than one-off query-specific filters.
 
 ### Bright Data (recommended)
 
