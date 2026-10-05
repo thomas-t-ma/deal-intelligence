@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Deal Intelligence{% endblock %}
+{% block heading %}Deal dashboard{% endblock %}
+{% block content %}
+<section class="hero-grid">
+  <div class="panel hero-panel">
+    <div class="eyebrow">TRACK ANY PRODUCT PAGE</div>
+    <h2>Build your own price history.</h2>
+    <p>Paste a retailer product URL. We only accept structured product pricing, so random dollar amounts do not contaminate history.</p>
+    <form class="track-form" method="post" action="/track-url">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="url" name="url" required placeholder="https://retailer.com/product/..." autocomplete="off">
+      <button class="button primary" type="submit">Track price</button>
+    </form>
+    <div class="microcopy">Respectful fetcher · robots.txt aware · private-network URLs blocked</div>
+    <details class="manual-add"><summary>Retailer blocks tracking? Add a manual price instead.</summary>
+      <form class="form-stack" method="post" action="/manual-add">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <div class="form-row"><label>Product title <input name="title" required></label><label>Current price <input name="price" type="number" step="0.01" min="0" required></label></div>
+        <div class="form-row"><label>Retailer <input name="retailer" placeholder="Micro Center"></label><label>Product URL <input name="url" type="url" placeholder="Optional"></label></div>
+        <div class="form-row"><label>Brand <input name="brand"></label><label>Model <input name="model"></label></div>
+        <label>Condition <select name="condition"><option value="new">New</option><option value="open_box_excellent">Open-box excellent</option><option value="certified">Certified</option><option value="refurbished">Refurbished</option><option value="used">Used</option></select></label>
+        <button class="button ghost" type="submit">Add manual listing</button>
+      </form>
+    </details>
+  </div>
+  <div class="stats-grid">
+    <div class="stat"><span>Products</span><strong>{{ product_count }}</strong></div>
+    <div class="stat"><span>Listings</span><strong>{{ listing_count }}</strong></div>
+    <div class="stat"><span>Alerts</span><strong>{{ watches }}</strong></div>
+    <div class="stat"><span>Top score</span><strong>{% if rows %}{{ '%.0f'|format(rows[0].deal.score) }}{% else %}—{% endif %}</strong></div>
+  </div>
+</section>
+
+<section class="section-heading">
+  <div><div class="eyebrow">YOUR MARKET</div><h2>Tracked listings</h2></div>
+  <form method="post" action="/scheduler/run">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="button ghost" type="submit">↻ Refresh due items</button>
+  </form>
+</section>
+
+{% if rows %}
+<div class="deal-list">
+{% for row in rows %}
+  <a class="deal-row" href="/product/{{ row.product.id }}">
+    <div class="deal-thumb">
+      {% if row.product.image_url %}<img src="{{ row.product.image_url }}" alt="">{% else %}<span>{{ (row.product.brand or row.product.title)[:2]|upper }}</span>{% endif %}
+    </div>
+    <div class="deal-main">
+      <div class="deal-title">{{ row.product.title }}</div>
+      <div class="deal-meta">{{ row.listing.retailer }} · {{ row.listing.condition|replace('_',' ')|title }} · {{ row.product.brand or 'Brand unknown' }}</div>
+      <div class="why">{{ row.deal.explanation }}</div>
+    </div>
+    <div class="price-block">
+      <strong>${{ '%.2f'|format(row.listing.effective_price) }}</strong>
+      {% if row.deal.typical_price %}<span>typ. ${{ '%.2f'|format(row.deal.typical_price) }}</span>{% endif %}
+    </div>
+    <div class="score-badge score-{{ row.deal.label|lower }}"><strong>{{ '%.0f'|format(row.deal.score) }}</strong><span>{{ row.deal.label }}</span></div>
+  </a>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty panel">
+  <div class="empty-icon">◎</div>
+  <h3>No tracked products yet</h3>
+  <p>Add a product URL above, or use Find Something to scout the market first.</p>
+</div>
+{% endif %}
+
+{% if alerts %}
+<section class="section-heading"><div><div class="eyebrow">RECENT</div><h2>Alert activity</h2></div></section>
+<div class="panel compact-list">
+{% for alert in alerts %}
+  <div><span class="pill">{{ '%.0f'|format(alert.deal_score) }}</span><p>{{ alert.message }}</p><time>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}</time></div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

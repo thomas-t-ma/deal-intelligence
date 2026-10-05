@@ -1,0 +1,229 @@
+# Deal Intelligence
+
+**Good products that happen to be cheap — not cheap products.**
+
+Deal Intelligence is a local-first, quality-aware price tracker and deal discovery web app. It is designed around a different question than a normal price-comparison site:
+
+> Is this a genuinely unusual price on something worth buying?
+
+The app tracks real observed prices, calculates effective price (including shipping, membership costs, coupons and cashback), separates condition classes, builds a conservative product identity, and scores deals using price anomaly, product quality, seller trust, evidence confidence and availability.
+
+## What works now
+
+- **Local web app** with a polished dashboard and no cloud account requirement.
+- **Product URL tracking** using JSON-LD/schema.org or structured product metadata only.
+- **Price history** in SQLite with WAL journaling.
+- **Deal Score** with hard guardrails preventing low-quality or low-trust items from becoming “Absurd” deals.
+- **Condition-aware history** (`new`, open-box, certified, refurbished, used, etc.).
+- **Effective-price accounting** for shipping, memberships, coupons and cashback.
+- **Conservative product identity resolution** using GTIN/model/MPN first and fuzzy titles only when identifiers do not conflict.
+- **Natural-language shopping requests** with a deterministic parser and optional local Ollama enhancement.
+- **Zero-key live deal discovery** from the Slickdeals Frontpage RSS feed, using merchant metadata and community/editor signals.
+- **Broad Google Shopping discovery** through optional SerpApi integration.
+- **Best Buy live search/open-box provider code** behind explicit terms acknowledgement; it is intentionally not the historical-data foundation.
+- **Manual listing mode** for retailers that block automated access or do not expose trustworthy structured metadata.
+- **Watch thresholds** by price and/or Deal Score.
+- **Local alert history** plus optional SMTP email delivery.
+- **Background refresh loop** while the service is running, plus `dealintel refresh` for schedulers/cron.
+- **Docker / Compose** support.
+- **30 automated tests** plus a smoke-tested FastAPI UI.
+
+## Fastest setup on Windows
+
+From PowerShell in the project folder:
+
+```powershell
+.\scripts\setup.ps1
+.\scripts\run.ps1
+```
+
+The app opens at `http://127.0.0.1:8765`.
+
+### Manual setup
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+dealintel init
+dealintel run
+```
+
+On macOS/Linux:
+
+```bash
+./scripts/setup.sh
+./scripts/run.sh
+```
+
+## Docker
+
+```bash
+docker compose up -d --build
+```
+
+Open `http://127.0.0.1:8765`. The database and local secrets live in the persistent `dealintel-data` volume.
+
+## Zero-key mode
+
+You can use the app without any external API keys:
+
+1. Paste a product page URL into the Dashboard.
+2. Deal Intelligence blocks local/private-network targets, fetches the page, and looks first for structured Product/Offer data, then schema microdata and supported mainstream-retailer price markup. `DEALINTEL_RESPECT_ROBOTS=true` can re-enable robots.txt enforcement if desired.
+3. The first observation is stored.
+4. Future refreshes build a real observed price history.
+5. You can enter product-quality evidence and effective-price adjustments.
+6. Create a watch for a target price or Deal Score.
+
+If a retailer blocks ordinary HTTP fetching, use **manual listing mode**. The private-use configuration is intentionally pragmatic, but it still does not attempt CAPTCHA solving, credential bypass, or other access-control circumvention.
+
+## Broad discovery
+
+### Slickdeals Frontpage (built in, no key)
+
+The **Ridiculous Deals** page now scouts the current Slickdeals Frontpage automatically, and natural-language search uses the same feed even with no API keys configured. Frontpage/community signals help discover promising bargains; your own tracked price history remains the higher-confidence evidence for deciding whether a current price is genuinely rare.
+
+
+### SerpApi / Google Shopping
+
+Add a SerpApi key in **Settings** to make “Find Something” search Google Shopping. As of October 2026, SerpApi advertises a free 250-search/month plan, but pricing can change; check the current plan before relying on that allowance.
+
+The app keeps this optional so your core price history and scoring do not depend on a paid data provider.
+
+### Best Buy
+
+Best Buy publishes a Products API plus a Buying Options/Open Box API. Their developer documentation also places restrictions on API content caching and other uses. For that reason:
+
+- Best Buy is **live discovery only** in this release.
+- The integration does not become the app's historical-price database.
+- The UI requires you to acknowledge that you reviewed the current Best Buy developer terms before enabling it.
+
+Do not turn this into a public commercial Best Buy comparison service without reviewing the current terms and, if appropriate, getting legal advice / retailer approval.
+
+## Local AI (optional)
+
+If you run Ollama, configure its URL and model in Settings. A small local model can turn requests such as:
+
+> Find two bright 27-inch QHD monitors under $300 total. HDMI required. Gaming performance is irrelevant.
+
+into structured purchasing constraints. If Ollama is unavailable, search falls back automatically to deterministic parsing.
+
+The app does **not** require an LLM to calculate Deal Scores.
+
+## Deal Score design
+
+Deal Score is a weighted geometric score rather than a simple advertised-discount percentage. Signals include:
+
+- **Price anomaly** — robust median history, empirical rarity, and reference-price evidence when history is sparse.
+- **Product quality** — review-derived evidence or a user-reviewed override.
+- **Seller trust** — conservative domain prior, editable per listing.
+- **Evidence confidence** — history depth, extraction quality, and quality confidence.
+- **Availability** — unavailable items cannot be high-scoring deals.
+- **Condition** — new/open-box/refurbished/used are not mixed as though they are identical.
+
+Hard caps enforce the product principle: a low-quality product, untrusted seller, unavailable listing, or weak evidence cannot receive a top-tier score solely because the price looks dramatic.
+
+### Why the history is conservative
+
+Product identity is the easiest way to poison a price tracker. Two adjacent monitor variants can have nearly identical names but different panels/specs/prices. Deal Intelligence therefore:
+
+1. Links exact GTIN/strong identifiers first.
+2. Uses model/MPN plus brand when available.
+3. Refuses fuzzy merging when disclosed model/MPN values conflict.
+4. Uses fuzzy titles only at a very high threshold and matching brand.
+
+This intentionally prefers duplicate products over incorrectly merged products. False merges are much more damaging than false splits.
+
+## Data & privacy
+
+Default application state lives under:
+
+- Windows: `%USERPROFILE%\.dealintel` (via `~/.dealintel`)
+- macOS/Linux: `~/.dealintel`
+
+Files:
+
+- `dealintel.sqlite3` — products, listings, observations, watches, alert events.
+- `secrets.json` — optional local provider/SMTP credentials. POSIX mode is set to `0600` when possible.
+
+Environment variables override stored settings for server deployments. See `.env.example`.
+
+The app defaults to `127.0.0.1`, so it is not exposed to your LAN unless you explicitly change the host.
+
+## Security choices
+
+The URL tracker:
+
+- accepts only HTTP(S),
+- resolves hostnames and blocks loopback/private/link-local/reserved IPs,
+- re-validates redirects,
+- respects robots.txt by default,
+- limits response size,
+- rate-limits requests per host,
+- only records structured product prices,
+- does not attempt CAPTCHA or anti-bot bypasses.
+
+If you expose the app publicly, add authentication and run it behind a production reverse proxy. The current product is intentionally **local-first**, not a multi-tenant SaaS auth system.
+
+## Commands
+
+```text
+dealintel init       Initialize the database
+dealintel run        Start the web app and background refresher
+dealintel refresh    Refresh currently-due URL listings and evaluate alerts once
+```
+
+Useful for Windows Task Scheduler / cron if you do not keep the web process running continuously:
+
+```bash
+dealintel refresh
+```
+
+## Development
+
+```bash
+python -m pip install -e '.[dev]'
+python -m pytest -q
+ruff check dealintel tests
+```
+
+GitHub Actions runs tests on Python 3.11 and 3.13.
+
+## Architecture
+
+```text
+                 discovery / tracking
+          ┌────────────┼────────────┐
+          │            │            │
+     product URLs   SerpApi     retailer APIs
+          │         (optional)    (optional)
+          └────────────┼────────────┘
+                       ↓
+                identity resolver
+                       ↓
+        product + condition-aware listings
+                       ↓
+              observed price history
+                       ↓
+     quality + trust + evidence + effective price
+                       ↓
+                   Deal Score
+                 ↙            ↘
+          ridiculous feed      watches/alerts
+```
+
+## What is deliberately *not* in v0.1
+
+- CAPTCHA / anti-bot bypassing.
+- Large-scale retailer scraping.
+- Automatic checkout/purchasing.
+- Affiliate ranking influence (future affiliate links must never alter Deal Score).
+- Multi-user SaaS authentication/billing.
+- Claims that MSRP/strikethrough pricing is historical truth.
+- Automatic fuzzy merging when model identifiers conflict.
+
+Those omissions protect reliability and keep the personal tool cheap to operate. They are not shortcuts in the core scoring/tracking design.
+
+## License
+
+MIT for the application code. Third-party data/API usage remains subject to each provider's current terms.

@@ -1,0 +1,10 @@
+services:
+  dealintel:
+    build: .
+    ports:
+      - "8765:8765"
+    volumes:
+      - dealintel-data:/data
+    restart: unless-stopped
+volumes:
+  dealintel-data:

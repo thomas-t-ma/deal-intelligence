@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}Deal Intelligence{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">DI</span>
+        <span><strong>Deal Intelligence</strong><small>Good products. Weird prices.</small></span>
+      </a>
+      <nav>
+        <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}"><span>⌂</span> Dashboard</a>
+        <a href="/ridiculous" class="nav-link {% if request.url.path == '/ridiculous' %}active{% endif %}"><span>⚡</span> Ridiculous Deals</a>
+        <a href="/search" class="nav-link {% if request.url.path == '/search' %}active{% endif %}"><span>⌕</span> Find Something</a>
+        <a href="/settings" class="nav-link {% if request.url.path == '/settings' %}active{% endif %}"><span>⚙</span> Settings</a>
+      </nav>
+      <div class="sidebar-note">
+        <span class="status-dot"></span>
+        Local-first · v{{ app_version }}
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">PRICE INTELLIGENCE</div>
+          <h1>{% block heading %}Dashboard{% endblock %}</h1>
+        </div>
+        <a class="button ghost" href="/search">⌕ Search deals</a>
+      </header>
+
+      {% if request.query_params.get('error') %}
+      <div class="notice danger"><strong>Couldn’t complete that.</strong> {{ request.query_params.get('error') }}</div>
+      {% endif %}
+      {% if request.query_params.get('added') %}<div class="notice success">Product added and its first price observation was recorded.</div>{% endif %}
+      {% if request.query_params.get('saved') %}<div class="notice success">Settings saved locally.</div>{% endif %}
+      {% if request.query_params.get('refreshed') %}<div class="notice success">Price refreshed.</div>{% endif %}
+      {% if request.query_params.get('quality') %}<div class="notice success">Quality assessment updated.</div>{% endif %}
+      {% if request.query_params.get('adjusted') %}<div class="notice success">Effective-price assumptions updated and recorded.</div>{% endif %}
+      {% if request.query_params.get('watch') %}<div class="notice success">Alert created.</div>{% endif %}
+
+      {% block content %}{% endblock %}
+      <footer>Deal scores are decision support, not guarantees. Verify price, condition, returns, and seller details before purchase.</footer>
+    </main>
+  </div>
+</body>
+</html>

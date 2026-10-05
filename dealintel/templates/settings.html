@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Settings · Deal Intelligence{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block content %}
+<form method="post" action="/settings" class="settings-stack">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<section class="panel">
+  <div class="section-heading tight"><div><div class="eyebrow">DISCOVERY</div><h2>Shopping providers</h2></div></div>
+  <div class="settings-grid">
+    <label>SerpApi API key <input type="password" name="serpapi_api_key" value="{{ values.serpapi_api_key }}" autocomplete="off"><small>Optional. Unlocks Google Shopping discovery. Current free plan can cover light personal use.</small></label>
+    <label>Search location <input name="search_location" value="{{ values.search_location or 'Atlanta, Georgia, United States' }}"><small>City-level context improves taxes/availability/local shopping results.</small></label>
+    <label>Best Buy API key <input type="password" name="bestbuy_api_key" value="{{ values.bestbuy_api_key }}" autocomplete="off"><small>Optional live-only source. We do not use it as the historical-price foundation.</small></label>
+    <label class="check wide"><input type="checkbox" name="bestbuy_terms_ack" {% if bestbuy_terms_ack %}checked{% endif %}> I have reviewed Best Buy’s current developer terms and will use this integration in a compliant way. <small>The app will not enable Best Buy live search until this is checked.</small></label>
+  </div>
+</section>
+<section class="panel">
+  <div class="section-heading tight"><div><div class="eyebrow">LOCAL AI</div><h2>Optional Ollama intent parser</h2></div></div>
+  <div class="settings-grid"><label>Ollama URL <input name="ollama_url" value="{{ values.ollama_url or 'http://127.0.0.1:11434' }}"></label><label>Model <input name="ollama_model" value="{{ values.ollama_model or 'qwen3.5:4b' }}"><small>If unavailable, search automatically falls back to deterministic parsing.</small></label></div>
+</section>
+<section class="panel">
+  <div class="section-heading tight"><div><div class="eyebrow">ALERTS</div><h2>Email delivery</h2></div></div>
+  <div class="settings-grid">
+    <label>Default alert email <input type="email" name="alert_email" value="{{ values.alert_email }}"></label><label>SMTP host <input name="smtp_host" value="{{ values.smtp_host }}"></label><label>SMTP port <input type="number" name="smtp_port" value="{{ values.smtp_port or '587' }}"></label><label>SMTP username <input name="smtp_username" value="{{ values.smtp_username }}"></label><label>SMTP password <input type="password" name="smtp_password" value="{{ values.smtp_password }}" autocomplete="off"></label><label>From address <input type="email" name="smtp_from" value="{{ values.smtp_from }}"></label>
+  </div>
+</section>
+<section class="panel storage"><div><div class="eyebrow">LOCAL STORAGE</div><h2>Your data stays here</h2><p>{{ home }}</p><code>{{ db_path }}</code></div><span class="pill">SQLite + WAL</span></section>
+<div class="savebar"><button class="button primary" type="submit">Save settings</button></div>
+</form>
+{% endblock %}

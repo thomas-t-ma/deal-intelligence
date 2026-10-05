@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} · Deal Intelligence{% endblock %}
+{% block heading %}Product intelligence{% endblock %}
+{% block content %}
+<section class="product-head panel">
+  <div class="product-image">{% if product.image_url %}<img src="{{ product.image_url }}" alt="">{% else %}<span>{{ (product.brand or product.title)[:2]|upper }}</span>{% endif %}</div>
+  <div class="product-copy">
+    <div class="eyebrow">{{ product.brand or 'UNKNOWN BRAND' }}{% if product.model %} · {{ product.model }}{% endif %}</div>
+    <h2>{{ product.title }}</h2>
+    <p>Quality evidence: <strong>{{ '%.0f'|format(product.quality_score) }}/100</strong> · confidence {{ '%.0f'|format(product.quality_confidence) }}/100{% if product.quality_reason %} · {{ product.quality_reason }}{% endif %}</p>
+  </div>
+  {% if rows %}<div class="hero-score score-{{ rows[0].deal.label|lower }}"><strong>{{ '%.0f'|format(rows[0].deal.score) }}</strong><span>{{ rows[0].deal.label }}</span></div>{% endif %}
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <div class="section-heading tight"><div><div class="eyebrow">HISTORY</div><h2>Observed effective price</h2></div></div>
+    <div class="chart-wrap"><svg id="priceChart" viewBox="0 0 900 300" data-series='{{ series_json|e }}' aria-label="Price history chart"></svg></div>
+    <div class="microcopy">Effective price includes configured shipping/membership costs minus coupons/cashback. A longer history increases score confidence.</div>
+  </section>
+  <section class="panel">
+    <div class="section-heading tight"><div><div class="eyebrow">QUALITY</div><h2>Your quality assessment</h2></div></div>
+    <p class="muted">Automatic review signals are useful, but product quality is the hardest signal. Override it after you have independently evaluated the model.</p>
+    <form method="post" action="/product/{{ product.id }}/quality" class="form-stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>Quality score <input type="number" min="0" max="100" step="1" name="score" value="{{ '%.0f'|format(product.quality_score) }}"></label>
+      <label>Reason <input type="text" name="reason" value="{{ product.quality_reason or '' }}" placeholder="Strong professional/user reviews; reliable model..."></label>
+      <button class="button ghost" type="submit">Save assessment</button>
+    </form>
+  </section>
+</div>
+
+<section class="section-heading"><div><div class="eyebrow">OFFERS</div><h2>Tracked listings</h2></div></section>
+<div class="deal-list">
+{% for row in rows %}
+  <div class="deal-row nonlink">
+    <div class="deal-main"><div class="deal-title">{{ row.listing.retailer }}</div><div class="deal-meta">{{ row.listing.condition|replace('_',' ')|title }} · confidence {{ '%.0f'|format(row.deal.confidence_signal) }}/100</div><div class="why">{{ row.deal.explanation }}</div>{% if row.listing.last_error %}<div class="error-inline">{{ row.listing.last_error }}</div>{% endif %}</div>
+    <div class="price-block"><strong>${{ '%.2f'|format(row.listing.effective_price) }}</strong>{% if row.listing.reference_price %}<span>ref. ${{ '%.2f'|format(row.listing.reference_price) }}</span>{% endif %}</div>
+    <div class="score-badge score-{{ row.deal.label|lower }}"><strong>{{ '%.0f'|format(row.deal.score) }}</strong><span>{{ row.deal.label }}</span></div>
+    <div class="row-actions">{% if row.listing.url %}<a class="button ghost small" href="{{ row.listing.url }}" target="_blank" rel="noopener noreferrer">Open ↗</a>{% endif %}{% if row.listing.provider == 'url' %}<form method="post" action="/listing/{{ row.listing.id }}/refresh"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button ghost small" type="submit">↻</button></form>{% endif %}</div>
+    <details class="listing-adjust"><summary>Effective price & trust assumptions</summary>
+      <form method="post" action="/listing/{{ row.listing.id }}/adjust" class="adjust-grid">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label>Price <input name="current_price" type="number" min="0" step="0.01" value="{{ row.listing.current_price }}"></label>
+        <label>Shipping <input name="shipping_price" type="number" min="0" step="0.01" value="{{ row.listing.shipping_price }}"></label>
+        <label>Membership cost <input name="membership_cost" type="number" min="0" step="0.01" value="{{ row.listing.membership_cost }}"></label>
+        <label>Coupon value <input name="coupon_value" type="number" min="0" step="0.01" value="{{ row.listing.coupon_value }}"></label>
+        <label>Cashback value <input name="cashback_value" type="number" min="0" step="0.01" value="{{ row.listing.cashback_value }}"></label>
+        <label>Trust score <input name="trust_score" type="number" min="0" max="100" step="1" value="{{ row.listing.trust_score }}"></label>
+        <label>Condition <select name="condition">{% for c in ['new','open_box_excellent','open_box_good','certified','refurbished','used_like_new','used','unknown'] %}<option value="{{ c }}" {% if row.listing.condition == c %}selected{% endif %}>{{ c|replace('_',' ')|title }}</option>{% endfor %}</select></label>
+        <button class="button ghost small" type="submit">Record adjustments</button>
+      </form>
+    </details>
+  </div>
+{% endfor %}
+</div>
+
+<div class="two-col">
+<section class="panel">
+  <div class="section-heading tight"><div><div class="eyebrow">WATCH</div><h2>Create an alert</h2></div></div>
+  <form method="post" action="/product/{{ product.id }}/watch" class="form-stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Name <input name="name" value="Price/deal alert"></label>
+    <div class="form-row"><label>Target effective price <input type="number" step="0.01" name="target_price" placeholder="Optional"></label><label>Minimum Deal Score <input type="number" min="0" max="100" step="1" name="min_deal_score" value="80"></label></div>
+    <label>Email override <input type="email" name="email" placeholder="Optional; otherwise global alert email"></label>
+    <button class="button primary" type="submit">Create alert</button>
+  </form>
+  {% if watches %}<div class="watch-list">{% for watch in watches %}<div><span><strong>{{ watch.name }}</strong><small>{% if watch.target_price %}≤ ${{ '%.2f'|format(watch.target_price) }}{% endif %}{% if watch.min_deal_score %} · score ≥ {{ '%.0f'|format(watch.min_deal_score) }}{% endif %}</small></span><form method="post" action="/watch/{{ watch.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="icon-button" aria-label="Delete alert">×</button></form></div>{% endfor %}</div>{% endif %}
+</section>
+<section class="panel danger-zone">
+  <div class="section-heading tight"><div><div class="eyebrow">MAINTENANCE</div><h2>Product controls</h2></div></div>
+  <p class="muted">Deleting a product also removes its listings, price history, and watches.</p>
+  <form method="post" action="/product/{{ product.id }}/delete" onsubmit="return confirm('Delete this product and all history?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button danger" type="submit">Delete product</button></form>
+</section>
+</div>
+{% endblock %}

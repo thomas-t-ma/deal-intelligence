@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Find Something · Deal Intelligence{% endblock %}
+{% block heading %}Find something worth buying{% endblock %}
+{% block content %}
+<section class="panel search-hero">
+  <div class="eyebrow">NATURAL-LANGUAGE PURCHASING</div>
+  <h2>Describe the outcome, not just the SKU.</h2>
+  <p>Example: “Find two bright 27-inch QHD monitors under $300 total. HDMI required. Gaming performance is irrelevant.”</p>
+  <form method="post" action="/search" class="search-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <textarea name="query" required rows="3" placeholder="What do you need, what matters, and what is your budget?">{{ query }}</textarea>
+    <div class="search-controls"><label class="check"><input type="checkbox" name="include_bestbuy" value="1"> Include Best Buy live API (only if enabled in Settings)</label><button class="button primary" type="submit">Scout the market</button></div>
+  </form>
+</section>
+
+{% if rows is not none %}
+<div class="search-summary panel">
+  <div><span>Quantity</span><strong>{{ intent.quantity }}</strong></div><div><span>Unit ceiling</span><strong>{% if intent.max_unit_price %}${{ '%.2f'|format(intent.max_unit_price) }}{% else %}—{% endif %}</strong></div><div><span>Sources</span><strong>{{ providers|join(', ') if providers else 'None configured' }}</strong></div><div><span>Results</span><strong>{{ rows|length }}</strong></div>
+</div>
+{% if errors %}<div class="notice danger">{{ errors|join(' · ') }}</div>{% endif %}
+{% if not serp_configured %}<div class="notice">Slickdeals discovery is active with no key. Add a SerpApi key in <a href="/settings">Settings</a> to broaden searches across Google Shopping.</div>{% endif %}
+
+{% if rows %}
+<div class="search-results">
+{% for row in rows %}
+  <article class="search-result">
+    <div class="result-image">{% if row.candidate.image_url %}<img src="{{ row.candidate.image_url }}" alt="">{% else %}<span>◫</span>{% endif %}</div>
+    <div class="result-main"><div class="card-top"><span class="pill">{{ row.candidate.retailer }}</span><span>fit {{ '%.0f'|format(row.fit_score) }}/100</span></div><h3>{{ row.candidate.title }}</h3><p>{{ row.deal.explanation }}</p><div class="signal-row"><span>Quality {{ '%.0f'|format(row.deal.quality_signal) }}</span><span>Trust {{ '%.0f'|format(row.deal.trust_signal) }}</span><span>Evidence {{ '%.0f'|format(row.deal.confidence_signal) }}</span></div></div>
+    <div class="result-side"><div class="big-price">${{ '%.2f'|format(row.candidate.effective_price) }}</div>{% if row.candidate.reference_price %}<div class="strike">ref. ${{ '%.2f'|format(row.candidate.reference_price) }}</div>{% endif %}<div class="score-badge score-{{ row.deal.label|lower }}"><strong>{{ '%.0f'|format(row.deal.score) }}</strong><span>{{ row.deal.label }}</span></div>{% if row.candidate.url %}<a class="button ghost small" href="{{ row.candidate.url }}" target="_blank" rel="noopener noreferrer">Open result ↗</a>{% endif %}</div>
+  </article>
+{% endfor %}
+</div>
+{% else %}<div class="empty panel"><div class="empty-icon">⌕</div><h3>No results returned</h3><p>Check provider configuration or broaden the request.</p></div>{% endif %}
+{% endif %}
+{% endblock %}

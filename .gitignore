@@ -2,7 +2,10 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
 .env
-data/
 *.db
-.DS_Store
+*.sqlite3
+.dealintel/
+dist/
+build/

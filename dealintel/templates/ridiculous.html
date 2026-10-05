@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Ridiculous Deals · Deal Intelligence{% endblock %}
+{% block heading %}Ridiculous deals{% endblock %}
+{% block content %}
+<div class="intro-copy"><span class="pill hot">NO GARBAGE</span><h2>Good products and unusually strong prices—not fake markdown theater.</h2><p>The live scout uses Slickdeals Frontpage as a free human-filtered discovery signal. Your own tracked deals remain stricter because they accumulate first-party price history over time.</p></div>
+
+<h2 class="section-title">Live scout</h2>
+{% if live_error %}<div class="notice danger">Live discovery is temporarily unavailable: {{ live_error }}</div>{% endif %}
+{% if live_rows %}
+<div class="card-grid">
+{% for row in live_rows %}
+  <article class="deal-card">
+    <div class="card-image">{% if row.candidate.image_url %}<img src="{{ row.candidate.image_url }}" alt="">{% else %}<span>⚡</span>{% endif %}</div>
+    <div class="card-body">
+      <div class="card-top"><span class="pill">{{ row.candidate.retailer }}</span><span>Slickdeals Frontpage</span></div>
+      <h3>{{ row.candidate.title }}</h3>
+      <div class="big-price">${{ '%.2f'|format(row.candidate.effective_price) }}</div>
+      {% if row.candidate.reference_price %}<div class="strike">shown ref. ${{ '%.2f'|format(row.candidate.reference_price) }}</div>{% endif %}
+      <div class="meter"><i style="width: {{ row.combined_score }}%"></i></div>
+      <div class="meter-label"><strong>{{ '%.0f'|format(row.combined_score) }}/100 · scout rank</strong><span>quality {{ '%.0f'|format(row.deal.quality_signal) }} · trust {{ '%.0f'|format(row.deal.trust_signal) }}</span></div>
+      <p>{{ row.deal.explanation }}</p>
+      <a class="button primary full" href="{{ row.candidate.url }}" target="_blank" rel="noopener noreferrer">Inspect on Slickdeals ↗</a>
+    </div>
+  </article>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty panel"><div class="empty-icon">⌕</div><h3>No live deals returned</h3><p>The feed may be temporarily unavailable. Your tracked price intelligence still works independently.</p></div>
+{% endif %}
+
+<h2 class="section-title">Your proven deals</h2>
+{% if rows %}
+<div class="card-grid">
+{% for row in rows %}
+  <article class="deal-card">
+    <div class="card-image">{% if row.product.image_url %}<img src="{{ row.product.image_url }}" alt="">{% else %}<span>⚡</span>{% endif %}</div>
+    <div class="card-body">
+      <div class="card-top"><span class="pill">{{ row.listing.retailer }}</span><span>{{ row.listing.condition|replace('_',' ')|title }}</span></div>
+      <h3>{{ row.product.title }}</h3>
+      <div class="big-price">${{ '%.2f'|format(row.listing.effective_price) }}</div>
+      {% if row.deal.discount_pct is not none %}<div class="discount">{{ '%.0f'|format(row.deal.discount_pct) }}% below robust reference</div>{% endif %}
+      <div class="meter"><i style="width: {{ row.deal.score }}%"></i></div>
+      <div class="meter-label"><strong>{{ '%.0f'|format(row.deal.score) }}/100 · {{ row.deal.label }}</strong><span>quality {{ '%.0f'|format(row.deal.quality_signal) }} · trust {{ '%.0f'|format(row.deal.trust_signal) }}</span></div>
+      <p>{{ row.deal.explanation }}</p>
+      <a class="button primary full" href="/product/{{ row.product.id }}">Inspect deal</a>
+    </div>
+  </article>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty panel"><div class="empty-icon">⚡</div><h3>No tracked deal has cleared the bar yet</h3><p>Track products you care about. Once enough observations accumulate, this section becomes the higher-confidence feed.</p></div>
+{% endif %}
+{% endblock %}
