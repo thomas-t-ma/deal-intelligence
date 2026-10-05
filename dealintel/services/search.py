@@ -23,11 +23,11 @@ _MAJOR_TOKEN_PATTERNS = (
 )
 
 _QUERY_NOISE = {
-    "affordable", "best", "budget", "buy", "buying", "cheap", "deal", "deals",
+    "affordable", "best", "budget", "but", "buy", "buying", "cheap", "deal", "deals",
     "find", "good", "great", "high", "looking", "low", "me", "need", "new",
     "open", "box", "please", "price", "prices", "quality", "recommend",
     "recommended", "sale", "show", "top", "total", "value", "want",
-    "each", "per", "pair", "two",
+    "each", "per", "pair", "two", "used", "refurbished", "certified",
 }
 
 
@@ -287,8 +287,8 @@ def _category_signal(candidate: OfferCandidate, intent: SearchIntent) -> tuple[f
     if requested == "general" or found == "general":
         return 0.0, requested, found
     if requested == found:
-        return 10.0, requested, found
-    return -22.0, requested, found
+        return 12.0, requested, found
+    return -30.0, requested, found
 
 
 def _matched_evidence(candidate: OfferCandidate, evidence: list[EvidenceItem]) -> list[EvidenceItem]:
