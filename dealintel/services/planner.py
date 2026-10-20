@@ -89,8 +89,7 @@ def classify_category(text: str) -> str:
 
 def looks_exact_product(text: str) -> bool:
     lower = text.lower()
-    # Exact mode is intentionally conservative. It is for SKU/model-like identifiers,
-    # not ordinary capacities, power ratings, refresh rates, or other specifications.
+    # Exact mode is for SKU/model-like identifiers, not ordinary specifications.
     modelish = re.findall(
         r"\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]{4,}\b",
         lower,
