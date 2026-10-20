@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "deal-intelligence"
 version = "0.4.0"
-description = "Quality-aware deal discovery and price intelligence for products worth buying."
+description = "Local price tracker and shopping search tool."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
