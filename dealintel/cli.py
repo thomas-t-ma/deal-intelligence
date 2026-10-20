@@ -18,7 +18,7 @@ def cmd_run(args) -> int:  # noqa: ANN001
     host = args.host or config.host
     port = args.port or config.port
     if args.open_browser and host in {"127.0.0.1", "localhost"}:
-        # Browser opening happens after a tiny delay in a daemon thread via stdlib timer.
+        # Open the browser shortly after the server starts.
         import threading
 
         threading.Timer(1.0, lambda: webbrowser.open(f"http://{host}:{port}")).start()
@@ -75,7 +75,7 @@ def main() -> int:
     refresh = sub.add_parser("refresh", help="Refresh due tracked URLs and evaluate alerts once")
     refresh.set_defaults(func=cmd_refresh)
 
-    benchmark = sub.add_parser("benchmark", help="Run the v0.4 real-shopping benchmark suite")
+    benchmark = sub.add_parser("benchmark", help="Run the search benchmark")
     benchmark.add_argument("--mode", choices=["quick", "deep"], default="deep")
     benchmark.add_argument("--output", default=None, help="Optional JSON report path")
     benchmark.set_defaults(func=cmd_benchmark)
