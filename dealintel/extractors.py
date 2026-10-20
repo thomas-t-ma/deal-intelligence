@@ -296,7 +296,7 @@ def extract_product_from_html(url: str, html: str) -> OfferCandidate:
                 raw={"source": "json-ld"},
             )
 
-    # Structured meta fallback. We intentionally avoid arbitrary regex scraping because a random
+    # Structured metadata fallback. Avoid arbitrary price regexes because unrelated
     # dollar amount on a page is not reliable enough to become a price observation.
     def meta(*names: str) -> str | None:
         for name in names:
