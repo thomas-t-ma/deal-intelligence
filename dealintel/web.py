@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Deal Intelligence",
     version="0.4.0",
-    description="Quality-aware deal discovery and price intelligence.",
+    description="Local price tracker and shopping search tool.",
     lifespan=lifespan,
 )
 app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")

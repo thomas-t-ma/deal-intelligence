@@ -168,8 +168,7 @@ async def run_search(
             else:
                 candidates.extend(result)
 
-        # Evidence enrichment is intentionally best-effort. One slow SERP query
-        # should not make a successful product search look broken to the user.
+        # Evidence queries are optional. Report them only if all of them fail.
         if bright_web_failures and bright_web_successes == 0:
             errors.append(
                 f"Bright Data evidence search failed ({len(bright_web_failures)} queries); "

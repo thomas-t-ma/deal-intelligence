@@ -149,7 +149,7 @@ def _identity_key(candidate: OfferCandidate) -> str:
     modelish = re.findall(r"\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]{5,}\b", title)
     if modelish:
         return f"title-model:{brand}:{'|'.join(modelish[:3])}"
-    # Deliberately strict fallback. False splits are safer than merging different variants.
+    # Use the full normalized title when stronger identifiers are unavailable.
     return f"title:{title}"
 
 
@@ -582,7 +582,7 @@ Candidates: {json.dumps(compact)}
             confidence = max(0.0, min(100.0, float(item["confidence"])))
         except (KeyError, TypeError, ValueError):
             continue
-        # AI can refine fit/quality, but price/deal math stays deterministic.
+        # Model output can adjust fit and quality; price calculations stay deterministic.
         row["fit_score"] = round(0.35 * row["fit_score"] + 0.65 * fit, 1)
         type_match = str(item.get("type_match") or "uncertain").lower()
         try:

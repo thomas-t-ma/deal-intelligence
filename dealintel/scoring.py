@@ -100,7 +100,7 @@ def score_deal(
     raw = 100 * math.exp(weighted_log) * condition_factor
     score = clamp(raw)
 
-    # "No garbage" guardrails: low-quality or low-trust products cannot masquerade as absurd deals.
+    # Cap scores when quality, trust, confidence, or availability is weak.
     if quality < 45:
         score = min(score, 58)
     if trust < 45:

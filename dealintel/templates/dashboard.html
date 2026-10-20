@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · Deal Intelligence{% endblock %}
-{% block heading %}Deal dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
 {% block content %}
 <section class="hero-grid">
   <div class="panel hero-panel">
-    <div class="eyebrow">TRACK ANY PRODUCT PAGE</div>
-    <h2>Build your own price history.</h2>
-    <p>Paste a retailer product URL. We only accept structured product pricing, so random dollar amounts do not contaminate history.</p>
+    <div class="eyebrow">TRACK PRODUCT</div>
+    <h2>Track a product page.</h2>
+    <p>Paste a retailer product URL to start recording prices.</p>
     <form class="track-form" method="post" action="/track-url">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="url" name="url" required placeholder="https://retailer.com/product/..." autocomplete="off">
       <button class="button primary" type="submit">Track price</button>
     </form>
-    <div class="microcopy">Respectful fetcher · robots.txt aware · private-network URLs blocked</div>
-    <details class="manual-add"><summary>Retailer blocks tracking? Add a manual price instead.</summary>
+    <div class="microcopy">Structured prices only · private-network URLs blocked</div>
+    <details class="manual-add"><summary>Add a manual price</summary>
       <form class="form-stack" method="post" action="/manual-add">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <div class="form-row"><label>Product title <input name="title" required></label><label>Current price <input name="price" type="number" step="0.01" min="0" required></label></div>
@@ -33,7 +33,7 @@
 </section>
 
 <section class="section-heading">
-  <div><div class="eyebrow">YOUR MARKET</div><h2>Tracked listings</h2></div>
+  <div><div class="eyebrow">TRACKED</div><h2>Listings</h2></div>
   <form method="post" action="/scheduler/run">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button class="button ghost" type="submit">↻ Refresh due items</button>
@@ -64,7 +64,7 @@
 <div class="empty panel">
   <div class="empty-icon">◎</div>
   <h3>No tracked products yet</h3>
-  <p>Add a product URL above, or use Find Something to scout the market first.</p>
+  <p>Add a product URL above or use Search.</p>
 </div>
 {% endif %}
 

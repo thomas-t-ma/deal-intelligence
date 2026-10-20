@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ product.title }} · Deal Intelligence{% endblock %}
-{% block heading %}Product intelligence{% endblock %}
+{% block heading %}Product{% endblock %}
 {% block content %}
 <section class="product-head panel">
   <div class="product-image">{% if product.image_url %}<img src="{{ product.image_url }}" alt="">{% else %}<span>{{ (product.brand or product.title)[:2]|upper }}</span>{% endif %}</div>
   <div class="product-copy">
     <div class="eyebrow">{{ product.brand or 'UNKNOWN BRAND' }}{% if product.model %} · {{ product.model }}{% endif %}</div>
     <h2>{{ product.title }}</h2>
-    <p>Quality evidence: <strong>{{ '%.0f'|format(product.quality_score) }}/100</strong> · confidence {{ '%.0f'|format(product.quality_confidence) }}/100{% if product.quality_reason %} · {{ product.quality_reason }}{% endif %}</p>
+    <p>Quality: <strong>{{ '%.0f'|format(product.quality_score) }}/100</strong> · confidence {{ '%.0f'|format(product.quality_confidence) }}/100{% if product.quality_reason %} · {{ product.quality_reason }}{% endif %}</p>
   </div>
   {% if rows %}<div class="hero-score score-{{ rows[0].deal.label|lower }}"><strong>{{ '%.0f'|format(rows[0].deal.score) }}</strong><span>{{ rows[0].deal.label }}</span></div>{% endif %}
 </section>
@@ -16,15 +16,15 @@
   <section class="panel">
     <div class="section-heading tight"><div><div class="eyebrow">HISTORY</div><h2>Observed effective price</h2></div></div>
     <div class="chart-wrap"><svg id="priceChart" viewBox="0 0 900 300" data-series='{{ series_json|e }}' aria-label="Price history chart"></svg></div>
-    <div class="microcopy">Effective price includes configured shipping/membership costs minus coupons/cashback. A longer history increases score confidence.</div>
+    <div class="microcopy">Effective price includes configured shipping and membership costs, minus coupons and cashback.</div>
   </section>
   <section class="panel">
     <div class="section-heading tight"><div><div class="eyebrow">QUALITY</div><h2>Your quality assessment</h2></div></div>
-    <p class="muted">Automatic review signals are useful, but product quality is the hardest signal. Override it after you have independently evaluated the model.</p>
+    <p class="muted">Set a manual quality score if needed.</p>
     <form method="post" action="/product/{{ product.id }}/quality" class="form-stack">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <label>Quality score <input type="number" min="0" max="100" step="1" name="score" value="{{ '%.0f'|format(product.quality_score) }}"></label>
-      <label>Reason <input type="text" name="reason" value="{{ product.quality_reason or '' }}" placeholder="Strong professional/user reviews; reliable model..."></label>
+      <label>Reason <input type="text" name="reason" value="{{ product.quality_reason or '' }}" placeholder="Review notes"></label>
       <button class="button ghost" type="submit">Save assessment</button>
     </form>
   </section>
@@ -38,7 +38,7 @@
     <div class="price-block"><strong>${{ '%.2f'|format(row.listing.effective_price) }}</strong>{% if row.listing.reference_price %}<span>ref. ${{ '%.2f'|format(row.listing.reference_price) }}</span>{% endif %}</div>
     <div class="score-badge score-{{ row.deal.label|lower }}"><strong>{{ '%.0f'|format(row.deal.score) }}</strong><span>{{ row.deal.label }}</span></div>
     <div class="row-actions">{% if row.listing.url %}<a class="button ghost small" href="{{ row.listing.url }}" target="_blank" rel="noopener noreferrer">Open ↗</a>{% endif %}{% if row.listing.provider == 'url' %}<form method="post" action="/listing/{{ row.listing.id }}/refresh"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button ghost small" type="submit">↻</button></form>{% endif %}</div>
-    <details class="listing-adjust"><summary>Effective price & trust assumptions</summary>
+    <details class="listing-adjust"><summary>Price and trust adjustments</summary>
       <form method="post" action="/listing/{{ row.listing.id }}/adjust" class="adjust-grid">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <label>Price <input name="current_price" type="number" min="0" step="0.01" value="{{ row.listing.current_price }}"></label>
@@ -68,7 +68,7 @@
   {% if watches %}<div class="watch-list">{% for watch in watches %}<div><span><strong>{{ watch.name }}</strong><small>{% if watch.target_price %}≤ ${{ '%.2f'|format(watch.target_price) }}{% endif %}{% if watch.min_deal_score %} · score ≥ {{ '%.0f'|format(watch.min_deal_score) }}{% endif %}</small></span><form method="post" action="/watch/{{ watch.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="icon-button" aria-label="Delete alert">×</button></form></div>{% endfor %}</div>{% endif %}
 </section>
 <section class="panel danger-zone">
-  <div class="section-heading tight"><div><div class="eyebrow">MAINTENANCE</div><h2>Product controls</h2></div></div>
+  <div class="section-heading tight"><div><div class="eyebrow">MAINTENANCE</div><h2>Delete product</h2></div></div>
   <p class="muted">Deleting a product also removes its listings, price history, and watches.</p>
   <form method="post" action="/product/{{ product.id }}/delete" onsubmit="return confirm('Delete this product and all history?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button danger" type="submit">Delete product</button></form>
 </section>

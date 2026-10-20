@@ -64,11 +64,7 @@ def _strong_identifier_match(session: Session, candidate: OfferCandidate) -> Pro
 
 
 def resolve_product(session: Session, candidate: OfferCandidate) -> Product:
-    """Resolve a candidate conservatively.
-
-    Strong identifiers auto-link. Fuzzy title matching only auto-links at a deliberately high
-    threshold and with matching brand so similar model variants do not collapse together.
-    """
+    """Match a listing to an existing product when identifiers are strong enough."""
     candidate.gtin = normalize_identifier(candidate.gtin)
     candidate.mpn = normalize_identifier(candidate.mpn)
     candidate.model = normalize_identifier(candidate.model)

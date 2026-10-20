@@ -53,11 +53,7 @@ def load_config() -> Config:
 
 
 class CredentialStore:
-    """Tiny local secret store.
-
-    This deliberately avoids a cloud secret dependency. On POSIX systems the file is
-    chmod 0600. Environment variables override stored values for deployment use.
-    """
+    """Local credential store. Environment variables override saved values."""
 
     ENV_MAP = {
         "brightdata_api_key": "DEALINTEL_BRIGHTDATA_API_KEY",

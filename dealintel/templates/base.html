@@ -13,26 +13,26 @@
     <aside class="sidebar">
       <a class="brand" href="/">
         <span class="brand-mark">DI</span>
-        <span><strong>Deal Intelligence</strong><small>Good products. Weird prices.</small></span>
+        <span><strong>Deal Intelligence</strong><small>Price tracker</small></span>
       </a>
       <nav>
         <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}"><span>⌂</span> Dashboard</a>
-        <a href="/ridiculous" class="nav-link {% if request.url.path == '/ridiculous' %}active{% endif %}"><span>⚡</span> Ridiculous Deals</a>
-        <a href="/search" class="nav-link {% if request.url.path == '/search' %}active{% endif %}"><span>⌕</span> Find Something</a>
+        <a href="/ridiculous" class="nav-link {% if request.url.path == '/ridiculous' %}active{% endif %}"><span>⚡</span> Deals</a>
+        <a href="/search" class="nav-link {% if request.url.path == '/search' %}active{% endif %}"><span>⌕</span> Search</a>
         <a href="/settings" class="nav-link {% if request.url.path == '/settings' %}active{% endif %}"><span>⚙</span> Settings</a>
       </nav>
       <div class="sidebar-note">
         <span class="status-dot"></span>
-        Local-first · v{{ app_version }}
+        Local · v{{ app_version }}
       </div>
     </aside>
     <main class="main">
       <header class="topbar">
         <div>
-          <div class="eyebrow">PRICE INTELLIGENCE</div>
+          <div class="eyebrow">PRICE TRACKER</div>
           <h1>{% block heading %}Dashboard{% endblock %}</h1>
         </div>
-        <a class="button ghost" href="/search">⌕ Search deals</a>
+        <a class="button ghost" href="/search">⌕ Search</a>
       </header>
 
       {% if request.query_params.get('error') %}
@@ -46,7 +46,7 @@
       {% if request.query_params.get('watch') %}<div class="notice success">Alert created.</div>{% endif %}
 
       {% block content %}{% endblock %}
-      <footer>Deal scores are decision support, not guarantees. Verify price, condition, returns, and seller details before purchase.</footer>
+      <footer>Verify price, condition, returns, and seller details before purchase.</footer>
     </main>
   </div>
 </body>
