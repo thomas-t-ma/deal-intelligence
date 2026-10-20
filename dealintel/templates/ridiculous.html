@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Ridiculous Deals · Deal Intelligence{% endblock %}
-{% block heading %}Ridiculous deals{% endblock %}
+{% block title %}Deals · Deal Intelligence{% endblock %}
+{% block heading %}Deals{% endblock %}
 {% block content %}
-<div class="intro-copy"><span class="pill hot">NO GARBAGE</span><h2>Good products and unusually strong prices—not fake markdown theater.</h2><p>The live scout combines Slickdeals Frontpage, DealNews Editors’ Choice, and 9to5Toys Steals as free human-filtered discovery signals. Your own tracked deals remain stricter because they accumulate first-party price history over time.</p></div>
+<div class="intro-copy"><h2>Live deal feeds and tracked products.</h2><p>Live results come from Slickdeals, DealNews, and 9to5Toys. Tracked products use your saved price history.</p></div>
 
-<h2 class="section-title">Live scout</h2>
+<h2 class="section-title">Live feeds</h2>
 {% if live_errors %}<div class="notice danger">Some live sources are temporarily unavailable: {{ live_errors|join(" · ") }}</div>{% endif %}
 {% if live_rows %}
 <div class="card-grid">
@@ -17,7 +17,7 @@
       <div class="big-price">${{ '%.2f'|format(row.candidate.effective_price) }}</div>
       {% if row.candidate.reference_price %}<div class="strike">shown ref. ${{ '%.2f'|format(row.candidate.reference_price) }}</div>{% endif %}
       <div class="meter"><i style="width: {{ row.combined_score }}%"></i></div>
-      <div class="meter-label"><strong>{{ '%.0f'|format(row.combined_score) }}/100 · scout rank</strong><span>quality {{ '%.0f'|format(row.deal.quality_signal) }} · trust {{ '%.0f'|format(row.deal.trust_signal) }}</span></div>
+      <div class="meter-label"><strong>{{ '%.0f'|format(row.combined_score) }}/100 · rank</strong><span>quality {{ '%.0f'|format(row.deal.quality_signal) }} · trust {{ '%.0f'|format(row.deal.trust_signal) }}</span></div>
       <p>{{ row.deal.explanation }}</p>
       <a class="button primary full" href="{{ row.candidate.url }}" target="_blank" rel="noopener noreferrer">Open deal source ↗</a>
     </div>
@@ -25,10 +25,10 @@
 {% endfor %}
 </div>
 {% else %}
-<div class="empty panel"><div class="empty-icon">⌕</div><h3>No live deals returned</h3><p>The feed may be temporarily unavailable. Your tracked price intelligence still works independently.</p></div>
+<div class="empty panel"><div class="empty-icon">⌕</div><h3>No live deals returned</h3><p>The feeds may be temporarily unavailable.</p></div>
 {% endif %}
 
-<h2 class="section-title">Your proven deals</h2>
+<h2 class="section-title">Tracked deals</h2>
 {% if rows %}
 <div class="card-grid">
 {% for row in rows %}
@@ -48,6 +48,6 @@
 {% endfor %}
 </div>
 {% else %}
-<div class="empty panel"><div class="empty-icon">⚡</div><h3>No tracked deal has cleared the bar yet</h3><p>Track products you care about. Once enough observations accumulate, this section becomes the higher-confidence feed.</p></div>
+<div class="empty panel"><div class="empty-icon">⚡</div><h3>No tracked deals yet</h3><p>Track products to build price history.</p></div>
 {% endif %}
 {% endblock %}
